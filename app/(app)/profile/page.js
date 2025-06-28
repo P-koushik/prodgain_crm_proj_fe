@@ -14,8 +14,8 @@ import { getIdToken } from "firebase/auth";
 
 const Profile = () => {
   const [profile, setProfile] = useState({
-    firstName: "",
-    lastName: "",
+    firstname: "",
+    lastname: "",
     email: "",
     phone: "",
     company: "",
@@ -24,10 +24,10 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [editProfile, setEditProfile] = useState(profile);
-
+  console.log("profile", profile);
   useEffect(() => {
     const fetchProfile = async () => {
-      
+
       try {
         const currentUser = auth.currentUser;
         if (!currentUser) return alert("You must be logged in");
@@ -39,16 +39,19 @@ const Profile = () => {
             "Authorization": `Bearer ${token}`,
           },
         });
+         console.log("res", res);
+        const data = await res.json(); // Parse JSON
 
-        if (res.data && res.data.user) {
-          const [firstName, lastName] = res.data.user.name?.split(" ") || ["", ""];
+        if (data && data.user) {
+          // const [firstname, ...rest] = data.user.name?.split(" ") || ["", ""];
+          // const lastname = rest.join(" ");
           setProfile({
-            firstName,
-            lastName,
-            email: res.data.user.email || "",
-            phone: res.data.user.phone || "",
-            company: res.data.user.company || "",
-            avatar: res.data.user.avatar || "",
+            firstname:data.user.name?.split(" ")[0] || "",
+            lastname: data.user.name?.split(" ").slice(1).join(" ") || "",
+            email: data.user.email || "",
+            phone: data.user.phone || "",
+            company: data.user.company || "",
+            avatar: data.user.avatar || "",
           });
         }
       } catch (err) {
@@ -77,28 +80,27 @@ const Profile = () => {
     e.preventDefault();
     try {
       const currentUser = auth.currentUser;
-        if (!currentUser) return alert("You must be logged in");
+      if (!currentUser) return alert("You must be logged in");
       const token = await getIdToken(currentUser);
-      const res = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}profile`,
+      const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}profile`,
         {
-          name: `${editProfile.firstName} ${editProfile.lastName}`,
+          name: `${editProfile.firstname} ${editProfile.lastname}`,
           email: editProfile.email,
           phone: editProfile.phone,
           company: editProfile.company,
         },
-        headers({ 
+        headers({
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
-         }),
-         
+        }),
+
       );
 
       if (res.data && res.data.user) {
-        const [firstName, lastName] = res.data.user.name?.split(" ") || ["", ""];
+        const [firstname, lastname] = res.data.user.name?.split(" ") || ["", ""];
         setProfile({
-          firstName,
-          lastName,
+          firstname,
+          lastname,
           email: res.data.user.email,
           phone: res.data.user.phone,
           company: res.data.user.company,
@@ -135,8 +137,8 @@ const Profile = () => {
             <Avatar className="h-20 w-20">
               <AvatarImage src={profile.avatar || "/placeholder.svg"} />
               <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xl">
-                {profile.firstName?.[0] || "U"}
-                {profile.lastName?.[0] || ""}
+                {profile.firstname?.[0] || "U"}
+                {profile.lastname?.[0] || ""}
               </AvatarFallback>
             </Avatar>
             <div>
@@ -152,11 +154,11 @@ const Profile = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label>First Name</Label>
-              <div className="border rounded px-3 py-2 bg-slate-50">{profile.firstName}</div>
+              <div className="border rounded px-3 py-2 bg-slate-50">{profile.firstname}</div>
             </div>
             <div>
               <Label>Last Name</Label>
-              <div className="border rounded px-3 py-2 bg-slate-50">{profile.lastName}</div>
+              <div className="border rounded px-3 py-2 bg-slate-50">{profile.lastname}</div>
             </div>
             <div>
               <Label>Email</Label>
@@ -188,20 +190,20 @@ const Profile = () => {
           <form onSubmit={handleEditSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstname">First Name</Label>
                 <Input
-                  id="firstName"
-                  name="firstName"
-                  value={editProfile.firstName}
+                  id="firstname"
+                  name="firstname"
+                  value={editProfile.firstname}
                   onChange={handleEditChange}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastname">Last Name</Label>
                 <Input
-                  id="lastName"
-                  name="lastName"
-                  value={editProfile.lastName}
+                  id="lastname"
+                  name="lastname"
+                  value={editProfile.lastname}
                   onChange={handleEditChange}
                 />
               </div>

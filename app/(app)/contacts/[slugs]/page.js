@@ -132,9 +132,7 @@ export default function ContactDetail() {
   const updateMutation = useMutation({
     mutationFn: updateContactById,
     onSuccess: (updatedContact) => {
-      // Update the specific contact in cache
       queryClient.setQueryData(["contact", contactId], updatedContact);
-      // Invalidate and refetch contacts list
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       setIsEditModalOpen(false);
     },
@@ -144,15 +142,11 @@ export default function ContactDetail() {
     },
   });
 
-  // TanStack Mutation for deleting contact
   const deleteMutation = useMutation({
     mutationFn: deleteContactById,
     onSuccess: () => {
-      // Invalidate contacts list to remove deleted contact
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
-      // Remove the specific contact from cache
       queryClient.removeQueries({ queryKey: ["contact", contactId] });
-      // Navigate back to contacts list
       router.push('/contacts');
     },
     onError: (error) => {
@@ -265,70 +259,7 @@ export default function ContactDetail() {
           </div>
         </div>
 
-        {/* Edit & Delete */}
         <div className="flex space-x-2">
-          {/* Edit Dialog */}
-          {/* <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" disabled={updateMutation.isPending}>
-                <Edit className="h-4 w-4 mr-2" />
-                {updateMutation.isPending ? 'Updating...' : 'Edit'}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-              <DialogHeader>
-                <DialogTitle>Edit Contact</DialogTitle>
-                <DialogDescription>Update contact information.</DialogDescription>
-              </DialogHeader>
-              <form
-                className="space-y-4"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  const formData = Object.fromEntries(new FormData(e.currentTarget));
-                  await handleUpdate(formData);
-                }}
-              >
-                {["name", "email", "phone", "company", "position", "notes"].map((field) => (
-                  <div className="space-y-2" key={field}>
-                    <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
-                    {field === "notes" ? (
-                      <Textarea 
-                        id={field} 
-                        name={field} 
-                        defaultValue={contact[field] || ""} 
-                        placeholder={`Enter ${field}...`}
-                      />
-                    ) : (
-                      <Input 
-                        id={field} 
-                        name={field} 
-                        defaultValue={contact[field] || ""} 
-                        placeholder={`Enter ${field}...`}
-                        type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
-                      />
-                    )}
-                  </div>
-                ))}
-                <div className="flex justify-end space-x-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setIsEditModalOpen(false)}
-                    disabled={updateMutation.isPending}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit" 
-                    className="bg-gradient-to-r from-blue-600 to-purple-600"
-                    disabled={updateMutation.isPending}
-                  >
-                    {updateMutation.isPending ? 'Saving...' : 'Save Changes'}
-                  </Button>
-                </div>
-              </form>
-            </DialogContent>
-          </Dialog> */}
           <EditContactDialog 
             isOpen={isEditModalOpen}
             setIsOpen={setIsEditModalOpen}

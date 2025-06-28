@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar, Filter, Search, Clock, Mail, Phone, FileText } from "lucide-react";
+import { Calendar, Filter, Clock, Mail, Phone, FileText } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { formatDistanceToNow } from "date-fns";
+import { DateRange } from "react-date-range";
+import "react-date-range/dist/styles.css";
+import "react-date-range/dist/theme/default.css";
 
 const iconMap = {
   email: Mail,
@@ -32,16 +32,65 @@ const colorMap = {
   deleteAccount: "bg-red-600",
 };
 
+// Helper to get icon and color for activity type
+function getActivityIconAndColor(type) {
+  return {
+    Icon: iconMap[type] || FileText,
+    color: colorMap[type] || "bg-gray-400",
+  };
+}
+
+// Helper to get user initials
+function getUserInitials(user) {
+  if (typeof user === "string") {
+    return user[0]?.toUpperCase() || "U";
+  }
+  return (
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("") || "U"
+  );
+}
+
+// Helper to format activity type
+function formatActivityType(type) {
+  return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+}
+
+// Helper to format activity time
+function formatActivityTime(timestamp) {
+  return timestamp
+    ? `${formatDistanceToNow(new Date(timestamp), { addSuffix: true })}`
+    : "";
+}
+
 const Activities = () => {
   const [activities, setActivities] = useState([]);
+  const [activityTypes, setActivityTypes] = useState([]); // For filter dropdown
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+
+  // Date range state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: null,
+      endDate: null,
+      key: "selection",
+    },
+  ]);
+
+  // Filter state
+  const [showTypeFilter, setShowTypeFilter] = useState(false);
+  const [selectedType, setSelectedType] = useState("");
 
   useEffect(() => {
     const fetchActivities = async () => {
       if (!user) {
         setLoading(false);
         setActivities([]);
+        setActivityTypes([]);
         return;
       }
       try {
@@ -53,18 +102,66 @@ const Activities = () => {
           },
         });
         const result = await res.json();
-        // console.log("Activities Response:", result); // debug
         setActivities(result || []);
+        // Extract unique activity types for filter dropdown
+        const types = Array.from(
+          new Set((result || []).map((a) => a.activityType))
+        );
+        setActivityTypes(types);
       } catch (err) {
-        console.error("Error fetching activities:", err.message);
         setActivities([]);
+        setActivityTypes([]);
       }
       setLoading(false);
     };
     fetchActivities();
   }, [user]);
-  
-console.log("Activities:", activities); // debug
+
+  // Filter activities by date range and type
+  const filteredActivities = activities.filter((activity) => {
+    // Date range filter
+    if (dateRange[0].startDate && dateRange[0].endDate) {
+      const activityDate = new Date(activity.timestamp);
+      const start = new Date(dateRange[0].startDate);
+      const end = new Date(dateRange[0].endDate);
+      end.setHours(23, 59, 59, 999); // include the whole end date
+      if (activityDate < start || activityDate > end) return false;
+    }
+    // Type filter
+    if (selectedType && activity.activityType !== selectedType) return false;
+    return true;
+  });
+
+  // Render a single activity item
+  function ActivityItem({ activity }) {
+    const { Icon, color } = getActivityIconAndColor(activity.activityType);
+    const initials = getUserInitials(activity.user);
+    return (
+      <div key={activity._id} className="relative flex items-start gap-4">
+        <div className="z-10">
+          <span className={`flex items-center justify-center h-10 w-10 rounded-full ${color} shadow-lg ring-4 ring-white`}>
+            <Icon className="h-5 w-5 text-white" />
+          </span>
+        </div>
+        <div className="flex-1">
+          <div className="bg-white rounded-xl shadow border border-slate-100 px-6 py-4">
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="font-semibold text-base text-slate-900">
+                {formatActivityType(activity.activityType)}
+              </span>
+            </div>
+            <div className="text-slate-700 mb-2 text-sm">
+              {activity.details || activity.activityType}
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
+              <span>{formatActivityTime(activity.timestamp)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -79,18 +176,74 @@ console.log("Activities:", activities); // debug
       {/* Filters */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input placeholder="Search activities..." className="pl-10" />
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
+            {/* Date Range Button */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setShowDatePicker((v) => !v)}
+              >
+                <Calendar className="h-4 w-4 mr-2" />
+                Date Range
+              </Button>
+              {showDatePicker && (
+                <div className="absolute z-50 mt-2">
+                  <DateRange
+                    editableDateInputs={true}
+                    onChange={(item) => setDateRange([item.selection])}
+                    moveRangeOnFirstSelection={false}
+                    ranges={dateRange}
+                    maxDate={new Date()}
+                  />
+                  <Button
+                    size="sm"
+                    className="mt-2"
+                    onClick={() => setShowDatePicker(false)}
+                  >
+                    Done
+                  </Button>
+                </div>
+              )}
             </div>
-            <Button variant="outline">
-              <Calendar className="h-4 w-4 mr-2" />
-              Date Range
-            </Button>
-            <Button variant="outline">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
+            {/* Filter Button */}
+            <div className="relative">
+              <Button
+                variant="outline"
+                onClick={() => setShowTypeFilter((v) => !v)}
+              >
+                <Filter className="h-4 w-4 mr-2" />
+                Filter
+              </Button>
+              {showTypeFilter && (
+                <div className="absolute z-50 mt-2 bg-white border rounded shadow p-2 min-w-[180px]">
+                  <div className="mb-2 font-semibold text-sm">Activity Type</div>
+                  <select
+                    className="w-full border rounded px-2 py-1 text-sm"
+                    value={selectedType}
+                    onChange={e => {
+                      setSelectedType(e.target.value);
+                      setShowTypeFilter(false);
+                    }}
+                  >
+                    <option value="">All Types</option>
+                    {activityTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {formatActivityType(type)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+            {/* Clear All Filters */}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
+                setSelectedType("");
+              }}
+            >
+              Clear Filters
             </Button>
           </div>
         </CardContent>
@@ -99,57 +252,23 @@ console.log("Activities:", activities); // debug
       {/* Timeline */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Activities</CardTitle>
+          <CardTitle>Recent Activity</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            {loading ? (
-              <div>Loading...</div>
-            ) : activities.length === 0 ? (
-              <div className="text-slate-500">No activities found.</div>
-            ) : (
-              activities.map((activity) => {
-                const Icon = iconMap[activity.activityType] || FileText;
-                const color = colorMap[activity.activityType] || "bg-gray-400";
-                const displayUser =
-                  typeof activity.user === "string"
-                    ? activity.user
-                    : activity.user?.name || "Unknown User";
-                const initials =
-                  typeof activity.user === "string"
-                    ? activity.user[0]?.toUpperCase() || "U"
-                    : activity.user?.name
-                        ?.split(" ")
-                        .map((n) => n[0])
-                        .join("") || "U";
-
-                return (
-                  <div key={activity._id} className="flex items-start space-x-4">
-                    <div className={`p-2 rounded-full ${color} flex-shrink-0`}>
-                      <Icon className="h-4 w-4 text-white" />
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <p className="text-sm font-medium">
-                        {activity.details || activity.activityType}
-                      </p>
-                      <div className="flex items-center space-x-2 text-xs text-slate-500">
-                        <Avatar className="h-5 w-5">
-                          <AvatarFallback className="text-xs">{initials}</AvatarFallback>
-                        </Avatar>
-                        <span>{displayUser}</span>
-                        <span>•</span>
-                        <Clock className="h-3 w-3" />
-                        <span>
-                          {activity.timestamp
-                            ? new Date(activity.timestamp).toLocaleString()
-                            : ""}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+          <div className="relative pl-8">
+            {/* Vertical timeline line */}
+            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-200 z-0" />
+            <div className="space-y-8">
+              {loading ? (
+                <div>Loading...</div>
+              ) : filteredActivities.length === 0 ? (
+                <div className="text-slate-500">No activities found.</div>
+              ) : (
+                filteredActivities.map((activity) => (
+                  <ActivityItem key={activity._id} activity={activity} />
+                ))
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>

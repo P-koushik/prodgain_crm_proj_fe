@@ -84,7 +84,6 @@ const Chat = () => {
     return () => {
       socket.off("aiResponse");
     };
-    // eslint-disable-next-line
   }, [activeChatId]);
 
   // Infinite scroll handler
@@ -107,7 +106,6 @@ const Chat = () => {
     }
   };
 
-  // Update chat history with new messages
   const updateChatHistory = (chatId, newMessages) => {
     setChatHistory(prev =>
       prev.map(chat =>
@@ -123,7 +121,6 @@ const Chat = () => {
     );
   };
 
-  // Send message
   const sendMessage = () => {
     if (inputMessage.trim()) {
       setMessages(prev => {
@@ -141,7 +138,6 @@ const Chat = () => {
     }
   };
 
-  // Clear chat (resets current chat)
   const clearChat = () => {
     setMessages([
       {

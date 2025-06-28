@@ -92,6 +92,8 @@ const Tags = () => {
   const { data: tagdata } = useQuery({queryKey: ["tags"],queryFn: () => getAlltags("", null, null, ""),});
 
   const tags = tagdata?.tags || [];
+  const tagCounts = tagdata?.tagCounts || {};
+  // console.log("tagcounts", tagCounts);
 
   return (
     <div className="space-y-6">
@@ -173,7 +175,7 @@ const Tags = () => {
                     </Button>
                   </div>
                 </div>
-                <p className="text-sm text-slate-500">{tag.count} contacts</p>
+                {/* <p className="text-sm text-slate-500">{tagCounts} contacts</p> */}
               </div>
             ))}
           </div>

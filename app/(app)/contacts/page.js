@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,10 +11,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Search, Filter, Upload, Edit, Trash2, MoreHorizontal } from "lucide-react";
+import { UserPlus, Search, Filter, Upload, Edit, Trash2, MoreHorizontal, Grid3X3, List } from "lucide-react";
 import { getAllContacts } from "@/lib/services/contactService.js";
 import { getAlltags } from "@/lib/services/tagService.js";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/firebase";
 import { getIdToken } from "firebase/auth";
 import Link from "next/link";
@@ -24,10 +24,12 @@ import Papa from "papaparse";
 const Contacts = () => {
   const [selectedContacts, setSelectedContacts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState(searchTerm);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [csvContacts, setCsvContacts] = useState([]);
   const [csvFile, setCsvFile] = useState(null);
+  const [viewMode, setViewMode] = useState("list"); // "list" or "grid"
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -37,29 +39,39 @@ const Contacts = () => {
     note: "",
   });
   const [pagenumber, setPagenumber] = useState(1);
-  const itemsPerPage = 5;
   const router = useRouter();
-  
-  console.log("Current Page Number:", pagenumber);  
-  
-  const { data: contactdata } = useQuery({ 
-    queryKey: ["contacts", pagenumber], 
-    queryFn: () => getAllContacts('', pagenumber, itemsPerPage, '')
+  const queryClient = useQueryClient();
+  const debounceTimeout = useRef(null);
+
+  const itemsPerPage = 12;
+
+  // Debounce searchTerm
+  useEffect(() => {
+    if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
+    debounceTimeout.current = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 800); 
+
+    return () => clearTimeout(debounceTimeout.current);
+  }, [searchTerm]);
+
+  const { data: contactdata } = useQuery({
+    queryKey: ["contacts", pagenumber, debouncedSearch],
+    queryFn: () => getAllContacts(debouncedSearch, pagenumber, itemsPerPage, ''),
   });
-  
-  const { data: tagdata } = useQuery({ 
-    queryKey: ["tags"], 
-    queryFn: () => getAlltags('', null, null, ''), 
-    enabled: true 
+
+  const { data: tagdata } = useQuery({
+    queryKey: ["tags"],
+    queryFn: () => getAlltags('', null, null, ''),
+    enabled: true
   });
-  
+
   const contacts = contactdata?.contacts || [];
-  // Since backend doesn't provide total count, we'll estimate based on current page data
+
   const hasNextPage = contacts.length === itemsPerPage;
   const hasPrevPage = pagenumber > 1;
   const starttagdata = tagdata?.tags || [];
-  
-  // Reset to page 1 when search term changes
+
   useEffect(() => {
     setPagenumber(1);
   }, [searchTerm]);
@@ -80,18 +92,6 @@ const Contacts = () => {
     }
   };
 
-  const getTagColor = (tag) => {
-    const colors = {
-      "Hot Lead": "bg-red-100 text-red-800",
-      "Customer": "bg-green-100 text-green-800",
-      "Prospect": "bg-blue-100 text-blue-800",
-      "Enterprise": "bg-purple-100 text-purple-800",
-      "Design": "bg-orange-100 text-orange-800",
-    };
-    return colors[tag] || "bg-gray-100 text-gray-800";
-  };
-
-  // Unified handleChange for all input fields
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "tags") {
@@ -107,7 +107,6 @@ const Contacts = () => {
     }
   };
 
-  // For tag checkbox selection
   const handleTagCheckbox = (tagName, checked) => {
     setContactForm((prev) => ({
       ...prev,
@@ -117,7 +116,6 @@ const Contacts = () => {
     }));
   };
 
-  // For CSV row selection (if you want to edit/import a single row)
   const handleCsvRowSelect = (csvRow) => {
     setContactForm({
       name: csvRow.name || csvRow.Name || "",
@@ -127,14 +125,13 @@ const Contacts = () => {
       tags: csvRow.tags
         ? csvRow.tags.split(",").map((t) => t.trim())
         : csvRow.Tags
-        ? csvRow.Tags.split(",").map((t) => t.trim())
-        : [],
+          ? csvRow.Tags.split(",").map((t) => t.trim())
+          : [],
       note: csvRow.note || csvRow.Note || "",
     });
     setIsAddModalOpen(true);
   };
 
-  // Submit handler for both manual and CSV single row
   const handlesubmit = async (e) => {
     if (e) e.preventDefault();
     const currentUser = auth.currentUser;
@@ -161,6 +158,7 @@ const Contacts = () => {
         tags: [],
         note: "",
       });
+      queryClient.invalidateQueries(["contacts"]);
     }
   };
 
@@ -185,6 +183,7 @@ const Contacts = () => {
     if (data.success) {
       alert(data.message);
       setSelectedContacts([]);
+      queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
     } else {
       alert("Failed to delete contacts.");
     }
@@ -205,12 +204,12 @@ const Contacts = () => {
     if (data.success) {
       alert(data.message);
       setSelectedContacts([]);
+      queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
     } else {
       alert("Failed to delete contacts.");
     }
   };
 
-  // Handle CSV file selection and parsing with validation
   const handleCsvFileChange = (e) => {
     const file = e.target.files[0];
     setCsvFile(file);
@@ -241,8 +240,8 @@ const Contacts = () => {
           if (errors.length > 0) {
             alert(
               "Some rows in your CSV are missing required fields:\n\n" +
-                errors.join("\n") +
-                "\n\nOnly valid rows will be shown and can be imported."
+              errors.join("\n") +
+              "\n\nOnly valid rows will be shown and can be imported."
             );
           }
 
@@ -256,7 +255,6 @@ const Contacts = () => {
     }
   };
 
-  // Save all CSV contacts to DB (one by one, using POST /contacts)
   const handleSaveCsvContacts = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) return alert("You must be logged in");
@@ -270,8 +268,8 @@ const Contacts = () => {
       tags: c.tags
         ? c.tags.split(",").map((t) => t.trim())
         : c.Tags
-        ? c.Tags.split(",").map((t) => t.trim())
-        : [],
+          ? c.Tags.split(",").map((t) => t.trim())
+          : [],
       note: c.note || c.Note || "",
       user: currentUser.uid,
     }));
@@ -297,26 +295,205 @@ const Contacts = () => {
       setCsvModalOpen(false);
       setCsvContacts([]);
       setCsvFile(null);
+      queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
     } else {
       alert("Some contacts failed to import.");
     }
   };
 
-  // Generate page numbers for pagination (without knowing total pages)
   const getVisiblePages = () => {
     const pages = [];
     const maxVisible = 5;
-    
+
     // Always show current page and 2 pages before/after if they exist
     const startPage = Math.max(1, pagenumber - 2);
     const endPage = pagenumber;
-    
+
     for (let i = startPage; i <= endPage; i++) {
       pages.push(i);
     }
-    
+
     return pages;
   };
+
+  const GridView = () => (
+    <div className="space-y-4">
+      {/* Select All for Grid View */}
+      <div className="flex items-center space-x-2 pb-2 border-b">
+        <Checkbox
+          checked={contacts.length > 0 && selectedContacts.length === contacts.length}
+          onCheckedChange={handleSelectAll}
+        />
+        <span className="text-sm text-slate-600">
+          Select All ({contacts.length} contacts)
+        </span>
+      </div>
+
+      {/* Grid Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {contacts.map((contact) => (
+          <Card
+            key={contact._id}
+            className={`hover:shadow-lg transition-shadow cursor-pointer ${selectedContacts.includes(contact._id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+              }`}
+            onClick={() => handleSelectContact(contact._id, !selectedContacts.includes(contact._id))}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center space-x-3">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src="/placeholder.svg" />
+                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
+                      {contact.avatar}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-semibold text-sm">
+                      <Link
+                        href={`/contacts/${contact._id}`}
+                        className="hover:underline text-blue-700"
+                        onClick={(e) => e.stopPropagation()} // Prevent card selection when clicking link
+                      >
+                        {contact.name}
+                      </Link>
+                    </h3>
+                    <p className="text-xs text-slate-600">{contact.company}</p>
+                  </div>
+                </div>
+                <Checkbox
+                  checked={selectedContacts.includes(contact._id)}
+                  onCheckedChange={(checked) => handleSelectContact(contact._id, checked)}
+                  onClick={(e) => e.stopPropagation()} // Prevent double-trigger
+                />
+              </div>
+
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center space-x-2 text-xs text-slate-600">
+                  <span className="font-medium">Email:</span>
+                  <span className="truncate">{contact.email}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-xs text-slate-600">
+                  <span className="font-medium">Phone:</span>
+                  <span>{contact.phone}</span>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <div className="flex flex-wrap gap-1">
+                  {(contact.tags || []).map((tag, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-slate-500">
+                  {contact.lastInteraction || "No recent activity"}
+                </span>
+                <div className="flex space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card selection
+                      router.push(`/contacts/${contact._id}?isedit=true`);
+                    }}
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card selection
+                      handledeleteone(contact._id);
+                    }}
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+
+  const ListView = () => (
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-12">
+            <Checkbox
+              checked={contacts.length > 0 && selectedContacts.length === contacts.length}
+              onCheckedChange={handleSelectAll}
+            />
+          </TableHead>
+          <TableHead>Contact</TableHead>
+          <TableHead>Email</TableHead>
+          <TableHead>Company</TableHead>
+          <TableHead>Tags</TableHead>
+          <TableHead>Last Interaction</TableHead>
+          <TableHead className="w-12">Actions</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {contacts.map((contact) => (
+          <TableRow key={contact._id}>
+            <TableCell>
+              <Checkbox
+                checked={selectedContacts.includes(contact._id)}
+                onCheckedChange={(checked) => handleSelectContact(contact._id, checked)}
+              />
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src="/placeholder.svg" />
+                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
+                    {contact.avatar}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="font-medium">
+                  <Link href={`/contacts/${contact._id}`} className="hover:underline text-blue-700">
+                    {contact.name}
+                  </Link>
+                </span>
+              </div>
+            </TableCell>
+            <TableCell className="text-slate-600">{contact.email}</TableCell>
+            <TableCell className="text-slate-600">{contact.company}</TableCell>
+            <TableCell>
+              <div className="flex flex-wrap gap-1">
+                {(contact.tags || []).map((tag, idx) => (
+                  <Badge key={idx} variant="secondary" className="text-xs">
+                    {tag}
+                  </Badge>
+                ))}
+              </div>
+            </TableCell>
+            <TableCell className="text-slate-500 text-sm">{contact.lastInteraction}</TableCell>
+            <TableCell>
+              <div className="flex space-x-1">
+                <Button variant="ghost" size="sm" onClick={() => {
+                  router.push(`/contacts/${contact._id}?isedit=true`)
+                }}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handledeleteone(contact._id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
+  );
 
   return (
     <div className="space-y-6">
@@ -418,6 +595,7 @@ const Contacts = () => {
                 <DialogDescription>
                   Select a CSV file to import contacts. Columns: name, email, phone, company, tags, note.
                 </DialogDescription>
+                
               </DialogHeader>
               <div className="space-y-4">
                 <Input type="file" accept=".csv" onChange={handleCsvFileChange} />
@@ -497,6 +675,29 @@ const Contacts = () => {
           </div>
         </CardContent>
       </Card>
+      
+      <div className="flex flex-row-reverse items-end overflow-hidden">
+        <div className="flex border rounded-lg overflow-hidden">
+          <Button
+            variant={viewMode === "list" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("list")}
+            className="rounded-none border-0"
+          >
+            <List className="h-4 w-4 mr-2" />
+            List
+          </Button>
+          <Button
+            variant={viewMode === "grid" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("grid")}
+            className="rounded-none border-0"
+          >
+            <Grid3X3 className="h-4 w-4 mr-2" />
+            Grid
+          </Button>
+        </div>
+      </div>
 
       {/* Bulk Actions Bar */}
       {selectedContacts.length > 0 && (
@@ -517,116 +718,13 @@ const Contacts = () => {
         </Card>
       )}
 
-      {/* Contacts Table */}
+      {/* Contacts Display */}
       <Card>
         <CardHeader>
-          <CardTitle>All Contacts</CardTitle>
+          <CardTitle>All Contacts ({contacts.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <Checkbox
-                    checked={contacts.length > 0 && selectedContacts.length === contacts.length}
-                    onCheckedChange={handleSelectAll}
-                  />
-                </TableHead>
-                <TableHead>Contact</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Tags</TableHead>
-                <TableHead>Last Interaction</TableHead>
-                <TableHead className="w-12">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {/* Show CSV contacts (not yet saved) at the top */}
-              {csvContacts.map((contact, idx) => (
-                <TableRow key={`csv-${idx}`} className="bg-yellow-50">
-                  <TableCell />
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder.svg" />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                          {contact.name?.[0] || contact.Name?.[0] || "?"}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">{contact.name || contact.Name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-slate-600">{contact.email || contact.Email}</TableCell>
-                  <TableCell className="text-slate-600">{contact.company || contact.Company}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {(contact.tags
-                        ? contact.tags.split(",")
-                        : contact.Tags
-                        ? contact.Tags.split(",")
-                        : []
-                      ).map((tag, idx) => (
-                        <Badge key={idx} variant="secondary" className={getTagColor(tag.trim())}>
-                          {tag.trim()}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-slate-500 text-sm">{contact.note || contact.Note}</TableCell>
-                  <TableCell />
-                </TableRow>
-              ))}
-              {contacts.map((contact) => (
-                <TableRow key={contact._id}>
-                  <TableCell>
-                    <Checkbox
-                      checked={selectedContacts.includes(contact._id)}
-                      onCheckedChange={(checked) => handleSelectContact(contact._id, checked)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder.svg" />
-                        <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xs">
-                          {contact.avatar}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium">
-                        <Link href={`/contacts/${contact._id}`} className="hover:underline text-blue-700">
-                          {contact.name}
-                        </Link>
-                      </span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-slate-600">{contact.email}</TableCell>
-                  <TableCell className="text-slate-600">{contact.company}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {(contact.tags || []).map((tag, idx) => (
-                        <Badge key={idx} variant="secondary" className={getTagColor(tag)}>
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-slate-500 text-sm">{contact.lastInteraction}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-1">
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        router.push(`/contacts/${contact._id}?isedit=true`)
-                      }}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handledeleteone(contact._id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {viewMode === "grid" ? <GridView /> : <ListView />}
         </CardContent>
       </Card>
 
@@ -640,7 +738,7 @@ const Contacts = () => {
         >
           Prev
         </Button>
-        
+
         {getVisiblePages().map((pageNum) => (
           <Button
             key={pageNum}
@@ -652,7 +750,7 @@ const Contacts = () => {
             {pageNum}
           </Button>
         ))}
-        
+
         <Button
           variant="outline"
           size="sm"
@@ -662,7 +760,7 @@ const Contacts = () => {
           Next
         </Button>
       </div>
-      
+
       {/* Pagination Info */}
       {contacts.length > 0 && (
         <div className="text-center text-sm text-slate-600">
