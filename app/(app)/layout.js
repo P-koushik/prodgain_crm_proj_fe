@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/authmiddleware";
 import Sidebar from "@/components/Sidebar";
 import TopBar from "@/components/TopBar";
+import { Toaster } from "sonner";
 
 export default function DashboardLayout({ children }) {
   return (
@@ -14,6 +15,7 @@ export default function DashboardLayout({ children }) {
           <div className="flex-1 flex flex-col h-full">
             <TopBar />
             <main className="flex-1 overflow-auto p-6">
+              <Toaster richColors position="top-right" />
               {children}
             </main>
           </div>

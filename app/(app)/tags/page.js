@@ -18,6 +18,7 @@ import { getAlltags } from "@/lib/services/tagService.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { auth } from "@/firebase";
 import { getIdToken } from "firebase/auth";
+import { toast } from "sonner";
 
 const Tags = () => {
   const queryClient = useQueryClient();
@@ -46,9 +47,11 @@ const Tags = () => {
 
     const data = await res.json();
     if (data.success) {
-      alert(data.message);
+      toast.success(data.message);
       setIsAddDialogOpen(false);
       queryClient.invalidateQueries(["tags"]);
+    } else {
+      toast.error(data.message || "Failed to add tag.");
     }
   };
 
@@ -69,10 +72,12 @@ const Tags = () => {
 
     const data = await res.json();
     if (data.success) {
-      alert(data.message);
+      toast.success(data.message);
       setIsEditDialogOpen(false);
       setEditingTag(null);
       queryClient.invalidateQueries(["tags"]);
+    } else {
+      toast.error(data.message || "Failed to update tag.");
     }
   };
 
@@ -87,7 +92,15 @@ const Tags = () => {
       },
       credentials: "include",
     });
-  }
+
+    const data = await res.json();
+    if (data.success) {
+      toast.success(data.message);
+      queryClient.invalidateQueries(["tags"]);
+    } else {
+      toast.error(data.message || "Failed to delete tag.");
+    }
+  };
 
   const { data: tagdata } = useQuery({queryKey: ["tags"],queryFn: () => getAlltags("", null, null, ""),});
 

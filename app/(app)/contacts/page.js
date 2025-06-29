@@ -20,6 +20,7 @@ import { getIdToken } from "firebase/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
+import { toast } from "sonner"; // Add this import at the top with other imports
 
 const Contacts = () => {
   const [selectedContacts, setSelectedContacts] = useState([]);
@@ -135,7 +136,7 @@ const Contacts = () => {
   const handlesubmit = async (e) => {
     if (e) e.preventDefault();
     const currentUser = auth.currentUser;
-    if (!currentUser) return alert("You must be logged in");
+    if (!currentUser) return toast.error("You must be logged in");
     const token = await getIdToken(currentUser);
 
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts`, {
@@ -148,7 +149,7 @@ const Contacts = () => {
     });
     const data = await res.json();
     if (data.success) {
-      alert(data.message);
+      toast.success(data.message);
       setIsAddModalOpen(false);
       setContactForm({
         name: "",
@@ -159,6 +160,8 @@ const Contacts = () => {
         note: "",
       });
       queryClient.invalidateQueries(["contacts"]);
+    } else {
+      toast.error(data.message || "Failed to add contact.");
     }
   };
 
@@ -166,7 +169,7 @@ const Contacts = () => {
     const currentUser = auth.currentUser;
     const token = await getIdToken(currentUser);
     if (selectedContacts.length === 0) {
-      alert("Please select at least one contact to delete.");
+      toast.error("Please select at least one contact to delete.");
       return;
     }
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts`, {
@@ -181,11 +184,11 @@ const Contacts = () => {
 
     const data = await res.json();
     if (data.success) {
-      alert(data.message);
+      toast.success(data.message);
       setSelectedContacts([]);
       queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
     } else {
-      alert("Failed to delete contacts.");
+      toast.error("Failed to delete contacts.");
     }
   };
 
@@ -202,11 +205,11 @@ const Contacts = () => {
 
     const data = await res.json();
     if (data.success) {
-      alert(data.message);
+      toast.success(data.message);
       setSelectedContacts([]);
       queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
     } else {
-      alert("Failed to delete contacts.");
+      toast.error("Failed to delete contacts.");
     }
   };
 
@@ -238,7 +241,7 @@ const Contacts = () => {
           });
 
           if (errors.length > 0) {
-            alert(
+            toast.error(
               "Some rows in your CSV are missing required fields:\n\n" +
               errors.join("\n") +
               "\n\nOnly valid rows will be shown and can be imported."
@@ -248,7 +251,7 @@ const Contacts = () => {
           setCsvContacts(validRows);
         },
         error: function (err) {
-          alert("Failed to parse CSV file. Please check your file format.");
+          toast.error("Failed to parse CSV file. Please check your file format.");
           setCsvContacts([]);
         },
       });
@@ -257,7 +260,7 @@ const Contacts = () => {
 
   const handleSaveCsvContacts = async () => {
     const currentUser = auth.currentUser;
-    if (!currentUser) return alert("You must be logged in");
+    if (!currentUser) return toast.error("You must be logged in");
     const token = await getIdToken(currentUser);
 
     const contactsToSave = csvContacts.map((c) => ({
@@ -291,13 +294,13 @@ const Contacts = () => {
     }
 
     if (allSuccess) {
-      alert("All contacts imported successfully.");
+      toast.success("All contacts imported successfully.");
       setCsvModalOpen(false);
       setCsvContacts([]);
       setCsvFile(null);
       queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
     } else {
-      alert("Some contacts failed to import.");
+      toast.error("Some contacts failed to import.");
     }
   };
 

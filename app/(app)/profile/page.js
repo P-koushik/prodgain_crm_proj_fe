@@ -11,6 +11,7 @@ import axios from "axios";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { auth } from "@/firebase";
 import { getIdToken } from "firebase/auth";
+import { toast } from "sonner";
 
 const Profile = () => {
   const [profile, setProfile] = useState({
@@ -27,10 +28,12 @@ const Profile = () => {
   console.log("profile", profile);
   useEffect(() => {
     const fetchProfile = async () => {
-
       try {
         const currentUser = auth.currentUser;
-        if (!currentUser) return alert("You must be logged in");
+        if (!currentUser) {
+          toast.error("You must be logged in");
+          return;
+        }
         const token = await getIdToken(currentUser);
         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}profile`, {
           method: "GET",
@@ -39,14 +42,11 @@ const Profile = () => {
             "Authorization": `Bearer ${token}`,
           },
         });
-         console.log("res", res);
         const data = await res.json(); // Parse JSON
 
         if (data && data.user) {
-          // const [firstname, ...rest] = data.user.name?.split(" ") || ["", ""];
-          // const lastname = rest.join(" ");
           setProfile({
-            firstname:data.user.name?.split(" ")[0] || "",
+            firstname: data.user.name?.split(" ")[0] || "",
             lastname: data.user.name?.split(" ").slice(1).join(" ") || "",
             email: data.user.email || "",
             phone: data.user.phone || "",
@@ -55,7 +55,7 @@ const Profile = () => {
           });
         }
       } catch (err) {
-        alert("Failed to load profile.");
+        toast.error("Failed to load profile.");
       }
       setLoading(false);
     };
@@ -80,24 +80,30 @@ const Profile = () => {
     e.preventDefault();
     try {
       const currentUser = auth.currentUser;
-      if (!currentUser) return alert("You must be logged in");
+      if (!currentUser) {
+        toast.error("You must be logged in");
+        return;
+      }
       const token = await getIdToken(currentUser);
-      const res = await axios.put(`${process.env.NEXT_PUBLIC_API_URL}profile`,
+      const res = await axios.put(
+        `${process.env.NEXT_PUBLIC_API_URL}profile`,
         {
           name: `${editProfile.firstname} ${editProfile.lastname}`,
           email: editProfile.email,
           phone: editProfile.phone,
           company: editProfile.company,
         },
-        headers({
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        }),
-
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+        }
       );
 
       if (res.data && res.data.user) {
-        const [firstname, lastname] = res.data.user.name?.split(" ") || ["", ""];
+        const [firstname, ...rest] = res.data.user.name?.split(" ") || ["", ""];
+        const lastname = rest.join(" ");
         setProfile({
           firstname,
           lastname,
@@ -107,10 +113,10 @@ const Profile = () => {
           avatar: res.data.user.avatar || "",
         });
         setEditOpen(false);
-        alert("Profile updated successfully!");
+        toast.success("Profile updated successfully!");
       }
     } catch (err) {
-      alert("Failed to update profile.");
+      toast.error("Failed to update profile.");
     }
   };
 

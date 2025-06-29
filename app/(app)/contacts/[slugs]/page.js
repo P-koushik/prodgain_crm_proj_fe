@@ -16,6 +16,7 @@ import { ArrowLeft, Edit, Trash2, Mail, Phone, Building } from 'lucide-react';
 import { auth } from '@/firebase';
 import { getIdToken } from 'firebase/auth';
 import EditContactDialog from '@/components/ContactEdit';
+import { toast } from "sonner";
 
 // TanStack Query function to get contact by ID
 const getContactById = async (contactId) => {
@@ -135,10 +136,11 @@ export default function ContactDetail() {
       queryClient.setQueryData(["contact", contactId], updatedContact);
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       setIsEditModalOpen(false);
+      toast.success("Contact updated successfully.");
     },
     onError: (error) => {
       console.error('Error updating contact:', error);
-      alert(`Failed to update contact: ${error.message}`);
+      toast.error(`Failed to update contact: ${error.message}`);
     },
   });
 
@@ -147,11 +149,12 @@ export default function ContactDetail() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       queryClient.removeQueries({ queryKey: ["contact", contactId] });
+      toast.success("Contact deleted successfully.");
       router.push('/contacts');
     },
     onError: (error) => {
       console.error('Error deleting contact:', error);
-      alert(`Failed to delete contact: ${error.message}`);
+      toast.error(`Failed to delete contact: ${error.message}`);
     },
   });
 
