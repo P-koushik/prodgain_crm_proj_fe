@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, UserPlus, Activity, Tags } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
-import { getAllContacts } from "@/lib/services/contactService.js";
+import { getcountofcontacts } from "@/lib/services/contactService.js";
 import { getAlltags } from "@/lib/services/tagService.js";
 import { getActivityLogs } from "@/lib/services/activityService.js";
 
@@ -13,8 +13,10 @@ const Dashboard = () => {
   // Fetch data using React Query
   const { data: contactData, isLoading: contactsLoading } = useQuery({
     queryKey: ["contacts"],
-    queryFn: () => getAllContacts('', null, null, ''),
+    queryFn: () => getcountofcontacts(),
   });
+
+  console.log("Contact Data:", contactData);
 
   const { data: tagData, isLoading: tagsLoading } = useQuery({
     queryKey: ["tags"],
@@ -26,14 +28,17 @@ const Dashboard = () => {
     queryFn: () => getActivityLogs(),
   });
 
-  const contacts = contactData?.contacts || [];
-  const tags = tagData?.tags || [];
+  const contacts = contactData?.data.allContacts || [];
+  const tags = contactData?.data.tagDistribution || [];
+  const showDataAccordingToDay = contactData?.data.activitiesByDay;
+  const countbycompany = contactData?.data.contactsByCompany || [];
   const activities = activityData || [];
 
-  // Calculate summary statistics
+  console.table("table",showDataAccordingToDay)
+
   const totalContacts = contacts.length;
   const totalTags = tags.length;
-  const totalActivities = activities.length;
+  const totalActivities = contactData?.data.activities || 0;
 
   // Calculate new contacts this week
   const oneWeekAgo = new Date();
@@ -43,7 +48,7 @@ const Dashboard = () => {
   ).length;
 
   // Process contacts by company data
-  const companyCounts = contacts.reduce((acc, contact) => {
+  const companyCounts = countbycompany.reduce((acc, contact) => {
     const company = contact.company || 'Unknown';
     acc[company] = (acc[company] || 0) + 1;
     return acc;
@@ -77,7 +82,7 @@ const Dashboard = () => {
     }
   });
 
-  const activitiesTimeline = Object.entries(activitiesByDay).map(([date, activities]) => ({
+  const activitiesTimeline = Object.entries(showDataAccordingToDay || {}).map(([date, activities]) => ({
     date,
     activities
   }));
@@ -229,7 +234,7 @@ const Dashboard = () => {
           <CardContent>
             {contactsByCompany.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={contactsByCompany}>
+                <BarChart data={countbycompany}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />

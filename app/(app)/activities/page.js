@@ -70,6 +70,7 @@ const Activities = () => {
     },
   ]);
 
+
   // Add these new state variables for filtering
   const [selectedActivityType, setSelectedActivityType] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -82,9 +83,11 @@ const Activities = () => {
   const [hasMore, setHasMore] = useState(true);
   const LIMIT = 5; // or whatever your backend limit is
 
+  // Remove selectedEntityType, since it's not used or defined
+
   useEffect(() => {
     setPage(1); // Reset page when user or filters change
-  }, [user, dateRange, selectedActivityType, selectedEntityType]);
+  }, [user, dateRange, selectedActivityType]);
 
   useEffect(() => {
     const fetchActivities = async () => {
@@ -138,7 +141,7 @@ const Activities = () => {
     };
     fetchActivities();
     // eslint-disable-next-line
-  }, [user, page, dateRange, selectedActivityType, selectedEntityType]);
+  }, [user, page, dateRange, selectedActivityType]);
 
   // Filter activities by date range and type
   const filteredActivities = activities.filter((activity) => {
