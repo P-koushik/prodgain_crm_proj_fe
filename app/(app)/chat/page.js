@@ -215,8 +215,8 @@ const Chat = () => {
               key={chat.id}
               onClick={() => switchChat(chat.id)}
               className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${activeChatId === chat.id
-                  ? "bg-blue-100 border border-blue-200"
-                  : "hover:bg-slate-200"
+                ? "bg-blue-100 border border-blue-200"
+                : "hover:bg-slate-200"
                 }`}
             >
               <div className="font-medium text-sm truncate">{chat.title}</div>
@@ -261,8 +261,8 @@ const Chat = () => {
             >
               <div
                 className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.isUser
-                    ? "bg-blue-500 text-white"
-                    : "bg-slate-100 text-slate-900"
+                  ? "bg-blue-500 text-white"
+                  : "bg-slate-100 text-slate-900"
                   }`}
               >
                 <div className="text-sm">{message.text}</div>

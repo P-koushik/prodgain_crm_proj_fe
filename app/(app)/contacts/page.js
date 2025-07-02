@@ -664,7 +664,18 @@ const Contacts = () => {
                             <TableCell>{c.phone}</TableCell>
                             <TableCell>{c.company}</TableCell>
                             <TableCell>{c.tags.join(", ")}</TableCell>
-                            <TableCell>{c.note}</TableCell>
+                            <TableCell
+                              style={{
+                                maxWidth: "200px",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                cursor: "pointer"
+                              }}
+                              title={c.note}
+                            >
+                              {c.note}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

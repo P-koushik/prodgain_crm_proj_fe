@@ -3,29 +3,15 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Calendar, Filter, Clock, Mail, Phone, FileText, Search, X } from "lucide-react";
+import { Calendar, Filter } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { DateRange } from "react-date-range";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
 const iconMap = {
-  email: Mail,
-  call: Phone,
-  note: FileText,
-  generic: FileText,
-  login: Mail,
-  logout: FileText,
-  updateProfile: Phone,
-  deleteAccount: FileText,
-};
-
-const colorMap = {
-  email: "bg-blue-500",
+  email: "mail",
   call: "bg-green-500",
   note: "bg-orange-500",
   generic: "bg-gray-500",
@@ -35,20 +21,16 @@ const colorMap = {
   deleteAccount: "bg-red-600",
 };
 
-// Helper to get icon and color for activity type
 function getActivityIconAndColor(type) {
   return {
-    Icon: iconMap[type] || FileText,
-    color: colorMap[type] || "bg-gray-400",
+    color: iconMap[type] || "bg-gray-400",
   };
 }
 
-// Helper to format activity type
 function formatActivityType(type) {
   return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 }
 
-// Helper to format activity time
 function formatActivityTime(timestamp) {
   return timestamp
     ? `${formatDistanceToNow(new Date(timestamp), { addSuffix: true })}`
@@ -60,7 +42,6 @@ const Activities = () => {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  // Date range state
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [dateRange, setDateRange] = useState([
     {
@@ -69,24 +50,15 @@ const Activities = () => {
       key: "selection",
     },
   ]);
-
-
-  // Add these new state variables for filtering
   const [selectedActivityType, setSelectedActivityType] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
-
-  // For activity type dropdown
   const [activityTypes, setActivityTypes] = useState([]);
-
-  // Pagination states
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const LIMIT = 5; // or whatever your backend limit is
-
-  // Remove selectedEntityType, since it's not used or defined
+  const LIMIT = 10;
 
   useEffect(() => {
-    setPage(1); // Reset page when user or filters change
+    setPage(1);
   }, [user, dateRange, selectedActivityType]);
 
   useEffect(() => {
@@ -104,10 +76,11 @@ const Activities = () => {
           page,
           limit: LIMIT,
           ...(selectedActivityType !== "all" && { type: selectedActivityType }),
-          ...(dateRange[0].startDate && dateRange[0].endDate && {
-            start: dateRange[0].startDate.toISOString(),
-            end: dateRange[0].endDate.toISOString(),
-          }),
+          ...(dateRange[0].startDate &&
+            dateRange[0].endDate && {
+              start: dateRange[0].startDate.toISOString(),
+              end: dateRange[0].endDate.toISOString(),
+            }),
         });
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}activity?${params.toString()}`,
@@ -121,14 +94,16 @@ const Activities = () => {
         const result = await res.json();
         if (page === 1) {
           setActivities(result || []);
-          // Extract unique activity types for filter dropdown
-          const types = Array.from(new Set((result || []).map((a) => a.activityType)));
+          const types = Array.from(
+            new Set((result || []).map((a) => a.activityType))
+          );
           setActivityTypes(types);
         } else {
           setActivities((prev) => [...prev, ...(result || [])]);
-          // Merge new types with previous
           const types = Array.from(
-            new Set([...activities, ...(result || [])].map((a) => a.activityType))
+            new Set(
+              [...activities, ...(result || [])].map((a) => a.activityType)
+            )
           );
           setActivityTypes(types);
         }
@@ -143,33 +118,30 @@ const Activities = () => {
     // eslint-disable-next-line
   }, [user, page, dateRange, selectedActivityType]);
 
-  // Filter activities by date range and type
   const filteredActivities = activities.filter((activity) => {
-    // Date range filter
     if (dateRange[0].startDate && dateRange[0].endDate) {
       const activityDate = new Date(activity.timestamp);
       const start = new Date(dateRange[0].startDate);
       const end = new Date(dateRange[0].endDate);
-      end.setHours(23, 59, 59, 999); // include the whole end date
+      end.setHours(23, 59, 59, 999);
       if (activityDate < start || activityDate > end) return false;
     }
-    // Type filter
-    if (selectedActivityType !== "all" && activity.activityType !== selectedActivityType) return false;
+    if (
+      selectedActivityType !== "all" &&
+      activity.activityType !== selectedActivityType
+    )
+      return false;
     return true;
   });
 
-  // Render a single activity item
   function ActivityItem({ activity }) {
-    const { Icon, color } = getActivityIconAndColor(activity.activityType);
-    // Remove getUserInitials if not needed
+    const { color } = getActivityIconAndColor(activity.activityType);
     return (
       <div key={activity._id} className="relative flex items-start gap-4">
         <div className="z-10">
           <span
             className={`flex items-center justify-center h-10 w-10 rounded-full ${color} shadow-lg ring-4 ring-white`}
-          >
-            <Icon className="h-5 w-5 text-white" />
-          </span>
+          />
         </div>
         <div className="flex-1">
           <div className="bg-white rounded-xl shadow border border-slate-100 px-6 py-4">
@@ -246,7 +218,9 @@ const Activities = () => {
               </Button>
               {showFilters && (
                 <div className="absolute z-50 mt-2 bg-white border rounded shadow p-2 min-w-[180px]">
-                  <div className="mb-2 font-semibold text-sm">Activity Type</div>
+                  <div className="mb-2 font-semibold text-sm">
+                    Activity Type
+                  </div>
                   <select
                     className="w-full border rounded px-2 py-1 text-sm"
                     value={selectedActivityType}
