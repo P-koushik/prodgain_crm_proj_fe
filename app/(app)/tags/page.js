@@ -38,7 +38,7 @@ const Tags = () => {
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token}`,
       },
-      body: JSON.stringify({ 
+      body: JSON.stringify({
         name,
         color
       }),
@@ -81,28 +81,50 @@ const Tags = () => {
     }
   };
 
-  const handleDeleteTag = async (tagId) => {
-    const currentUser = auth.currentUser;
-    const token = await getIdToken(currentUser);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}tags/${tagId}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      credentials: "include",
-    });
+  const handleDeleteTag = async (tagId, force = false) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        toast.error("You must be logged in");
+        return;
+      }
+      const token = await getIdToken(currentUser);
 
-    const data = await res.json();
-    if (data.success) {
-      toast.success(data.message);
-      queryClient.invalidateQueries(["tags"]);
-    } else {
-      toast.error(data.message || "Failed to delete tag.");
+      const url = force
+        ? `${process.env.NEXT_PUBLIC_API_URL}tags/${tagId}?force=true`
+        : `${process.env.NEXT_PUBLIC_API_URL}tags/${tagId}`;
+
+      const res = await fetch(url, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        toast.success(data.message);
+        queryClient.invalidateQueries(["tags"]);
+        queryClient.invalidateQueries(["contacts"]); // Refresh contacts too if force deleted
+      } else {
+        if (data.contactCount > 0) {
+          // Show confirmation dialog for force delete
+          if (confirm(`Tag "${data.tagName}" is used by ${data.contactCount} contact(s). Do you want to remove it from all contacts and delete the tag?`)) {
+            handleDeleteTag(tagId, true); // Force delete
+          }
+        } else {
+          toast.error(data.error || "Failed to delete tag");
+        }
+      }
+    } catch (err) {
+      console.error("Delete tag error:", err);
+      toast.error("Failed to delete tag. Please try again.");
     }
   };
 
-  const { data: tagdata } = useQuery({queryKey: ["tags"],queryFn: () => getAlltags("", null, null, ""),});
+  const { data: tagdata } = useQuery({ queryKey: ["tags"], queryFn: () => getAlltags("", null, null, ""), });
 
   const tags = tagdata?.tags || [];
   const tagCounts = tagdata?.tagCounts || {};
@@ -169,6 +191,9 @@ const Tags = () => {
                   <div className="flex items-center space-x-3">
                     <div className="w-4 h-4 rounded-full" style={{ backgroundColor: tag.color }}></div>
                     <span className="font-medium">{tag.name}</span>
+                    <span className="text-xs text-slate-500 ml-2">
+                      {tagCounts[tag.name] || 0} contact{(tagCounts[tag.name] || 0) === 1 ? "" : "s"}
+                    </span>
                   </div>
                   <div className="flex space-x-1">
                     <Button

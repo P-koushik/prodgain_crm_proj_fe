@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +20,8 @@ import { getIdToken } from "firebase/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
-import { toast } from "sonner"; // Add this import at the top with other imports
+import { toast } from "sonner";
+import { useDropzone } from "react-dropzone";
 
 const Contacts = () => {
   const [selectedContacts, setSelectedContacts] = useState([]);
@@ -30,19 +31,14 @@ const Contacts = () => {
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [csvContacts, setCsvContacts] = useState([]);
   const [csvFile, setCsvFile] = useState(null);
+  const [csvErrors, setCsvErrors] = useState([]);
   const [viewMode, setViewMode] = useState("list"); // "list" or "grid"
-  const [contactForm, setContactForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    company: "",
-    tags: [],
-    note: "",
-  });
+  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", company: "", tags: [], note: "", });
   const [pagenumber, setPagenumber] = useState(1);
   const router = useRouter();
   const queryClient = useQueryClient();
   const debounceTimeout = useRef(null);
+  const [importing, setImporting] = useState(false);
 
   const itemsPerPage = 12;
 
@@ -51,7 +47,7 @@ const Contacts = () => {
     if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
     debounceTimeout.current = setTimeout(() => {
       setDebouncedSearch(searchTerm);
-    }, 800); 
+    }, 800);
 
     return () => clearTimeout(debounceTimeout.current);
   }, [searchTerm]);
@@ -72,6 +68,12 @@ const Contacts = () => {
   const hasNextPage = contacts.length === itemsPerPage;
   const hasPrevPage = pagenumber > 1;
   const starttagdata = tagdata?.tags || [];
+
+  // Build a tag color map: { tagName: color }
+  const tagColorMap = {};
+  starttagdata.forEach(tag => {
+    tagColorMap[tag.name] = tag.color;
+  });
 
   useEffect(() => {
     setPagenumber(1);
@@ -213,95 +215,93 @@ const Contacts = () => {
     }
   };
 
-  const handleCsvFileChange = (e) => {
-    const file = e.target.files[0];
+  // Drag-and-drop handler
+  const onDrop = useCallback((acceptedFiles) => {
+    if (acceptedFiles.length === 0) return;
+    const file = acceptedFiles[0];
     setCsvFile(file);
-    if (file) {
-      Papa.parse(file, {
-        header: true,
-        skipEmptyLines: true,
-        complete: function (results) {
-          // Validate required fields for each row
-          const requiredFields = ["name", "email", "phone", "company"];
-          const errors = [];
-          const validRows = [];
 
-          results.data.forEach((row, idx) => {
-            // Support both lowercase and capitalized headers
-            const name = row.name || row.Name;
-            const email = row.email || row.Email;
-            const phone = row.phone || row.Phone;
-            const company = row.company || row.Company;
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: function (results) {
+        const requiredFields = ["name", "email", "phone", "company"];
+        const errors = [];
+        const validRows = [];
+        const seen = new Set();
 
-            if (!name || !email || !phone || !company) {
-              errors.push(`Row ${idx + 2} is missing required fields.`);
+        results.data.forEach((row, idx) => {
+          const name = row.name || row.Name;
+          const email = (row.email || row.Email || "").toLowerCase();
+          const phone = row.phone || row.Phone;
+          const company = row.company || row.Company;
+
+          if (!name || !email || !phone || !company) {
+            errors.push(`Row ${idx + 2} is missing required fields.`);
+          } else {
+            if (seen.has(email)) {
+              errors.push(`Row ${idx + 2} is a duplicate (email: ${email}).`);
             } else {
-              validRows.push(row);
+              seen.add(email);
+              validRows.push({
+                name,
+                email,
+                phone,
+                company,
+                tags: (row.tags || row.Tags || "")
+                  .split(",")
+                  .map((t) => t.trim())
+                  .filter(Boolean),
+                note: row.note || row.Note || "",
+              });
             }
-          });
-
-          if (errors.length > 0) {
-            toast.error(
-              "Some rows in your CSV are missing required fields:\n\n" +
-              errors.join("\n") +
-              "\n\nOnly valid rows will be shown and can be imported."
-            );
           }
+        });
 
-          setCsvContacts(validRows);
-        },
-        error: function (err) {
-          toast.error("Failed to parse CSV file. Please check your file format.");
-          setCsvContacts([]);
-        },
-      });
-    }
-  };
+        setCsvErrors(errors);
+        setCsvContacts(validRows);
+      },
+      error: function (err) {
+        setCsvErrors(["Failed to parse CSV file. Please check your file format."]);
+        setCsvContacts([]);
+      },
+    });
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { "text/csv": [".csv"] },
+    multiple: false,
+  });
 
   const handleSaveCsvContacts = async () => {
-    const currentUser = auth.currentUser;
-    if (!currentUser) return toast.error("You must be logged in");
-    const token = await getIdToken(currentUser);
-
-    const contactsToSave = csvContacts.map((c) => ({
-      name: c.name || c.Name || "",
-      email: c.email || c.Email || "",
-      phone: c.phone || c.Phone || "",
-      company: c.company || c.Company || "",
-      tags: c.tags
-        ? c.tags.split(",").map((t) => t.trim())
-        : c.Tags
-          ? c.Tags.split(",").map((t) => t.trim())
-          : [],
-      note: c.note || c.Note || "",
-      user: currentUser.uid,
-    }));
-
-    let allSuccess = true;
-    for (const contact of contactsToSave) {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts`, {
+    setImporting(true);
+    try {
+      const currentUser = auth.currentUser;
+      const token = await getIdToken(currentUser);
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts/import`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
         },
-        body: JSON.stringify(contact),
+        body: JSON.stringify({ contacts: csvContacts }),
       });
       const data = await res.json();
-      if (!data.success) {
-        allSuccess = false;
+      if (data.success) {
+        toast.success(data.message || "Contacts imported successfully.");
+        setCsvModalOpen(false);
+        setCsvContacts([]);
+        setCsvFile(null);
+        setCsvErrors([]);
+        queryClient.invalidateQueries(["contacts"]);
+      } else {
+        toast.error(data.message || "Some contacts may have been skipped due to duplicates.");
       }
+    } catch (err) {
+      toast.error("Failed to import contacts. Please try again.");
     }
-
-    if (allSuccess) {
-      toast.success("All contacts imported successfully.");
-      setCsvModalOpen(false);
-      setCsvContacts([]);
-      setCsvFile(null);
-      queryClient.invalidateQueries(["contacts"]); // <-- refetch contacts
-    } else {
-      toast.error("Some contacts failed to import.");
-    }
+    setImporting(false);
   };
 
   const getVisiblePages = () => {
@@ -384,7 +384,15 @@ const Contacts = () => {
               <div className="mb-3">
                 <div className="flex flex-wrap gap-1">
                   {(contact.tags || []).map((tag, idx) => (
-                    <Badge key={idx} variant="secondary" className="text-xs">
+                    <Badge
+                      key={idx}
+                      variant="secondary"
+                      className="text-xs"
+                      style={{
+                        backgroundColor: tagColorMap[tag] || "#e5e7eb",
+                        color: "#222"
+                      }}
+                    >
                       {tag}
                     </Badge>
                   ))}
@@ -473,7 +481,15 @@ const Contacts = () => {
             <TableCell>
               <div className="flex flex-wrap gap-1">
                 {(contact.tags || []).map((tag, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-xs">
+                  <Badge
+                    key={idx}
+                    variant="secondary"
+                    className="text-xs"
+                    style={{
+                      backgroundColor: tagColorMap[tag] || "#e5e7eb",
+                      color: "#222"
+                    }}
+                  >
                     {tag}
                   </Badge>
                 ))}
@@ -596,12 +612,37 @@ const Contacts = () => {
               <DialogHeader>
                 <DialogTitle>Import Contacts from CSV</DialogTitle>
                 <DialogDescription>
-                  Select a CSV file to import contacts. Columns: name, email, phone, company, tags, note.
+                  Drag and drop a CSV file here, or click to select. Columns: name, email, phone, company, tags, note.
                 </DialogDescription>
-                
               </DialogHeader>
               <div className="space-y-4">
-                <Input type="file" accept=".csv" onChange={handleCsvFileChange} />
+                {/* Drag-and-drop area */}
+                <div
+                  {...getRootProps()}
+                  className={`border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors ${isDragActive ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-slate-50"
+                    }`}
+                >
+                  <input {...getInputProps()} />
+                  {isDragActive ? (
+                    <p className="text-blue-700">Drop the CSV file here ...</p>
+                  ) : (
+                    <p>
+                      Drag & drop a CSV file here, or <span className="underline text-blue-700">click to select</span>
+                    </p>
+                  )}
+                  {csvFile && <p className="mt-2 text-xs text-slate-500">Selected file: {csvFile.name}</p>}
+                </div>
+
+                {/* Error display */}
+                {csvErrors.length > 0 && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 rounded p-2 text-sm space-y-1">
+                    {csvErrors.map((err, idx) => (
+                      <div key={idx}>{err}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Table preview */}
                 {csvContacts.length > 0 && (
                   <div className="max-h-60 overflow-y-scroll border rounded p-2 bg-slate-50">
                     <Table>
@@ -613,33 +654,24 @@ const Contacts = () => {
                           <TableHead>Company</TableHead>
                           <TableHead>Tags</TableHead>
                           <TableHead>Note</TableHead>
-                          <TableHead>Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {csvContacts.map((c, idx) => (
                           <TableRow key={idx}>
-                            <TableCell className="max-w-[120px] truncate">{c.name || c.Name}</TableCell>
-                            <TableCell className="max-w-[180px] truncate">{c.email || c.Email}</TableCell>
-                            <TableCell className="max-w-[120px] truncate">{c.phone || c.Phone}</TableCell>
-                            <TableCell className="max-w-[140px] truncate">{c.company || c.Company}</TableCell>
-                            <TableCell className="max-w-[140px] truncate">{c.tags || c.Tags}</TableCell>
-                            <TableCell className="max-w-[180px] truncate">{c.note || c.Note}</TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleCsvRowSelect(c)}
-                              >
-                                Edit & Save
-                              </Button>
-                            </TableCell>
+                            <TableCell>{c.name}</TableCell>
+                            <TableCell>{c.email}</TableCell>
+                            <TableCell>{c.phone}</TableCell>
+                            <TableCell>{c.company}</TableCell>
+                            <TableCell>{c.tags.join(", ")}</TableCell>
+                            <TableCell>{c.note}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                   </div>
                 )}
+
                 <div className="flex justify-end space-x-2">
                   <Button variant="outline" onClick={() => setCsvModalOpen(false)}>
                     Cancel
@@ -647,9 +679,9 @@ const Contacts = () => {
                   <Button
                     className="bg-gradient-to-r from-blue-600 to-purple-600"
                     onClick={handleSaveCsvContacts}
-                    disabled={csvContacts.length === 0}
+                    disabled={csvContacts.length === 0 || importing}
                   >
-                    Save All Contacts
+                    {importing ? "Importing..." : "Save All Contacts"}
                   </Button>
                 </div>
               </div>
@@ -678,7 +710,7 @@ const Contacts = () => {
           </div>
         </CardContent>
       </Card>
-      
+
       <div className="flex flex-row-reverse items-end overflow-hidden">
         <div className="flex border rounded-lg overflow-hidden">
           <Button

@@ -15,6 +15,9 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { toast } from "sonner";
+import { auth } from "../../../firebase.js"; 
 
 const Login = () => {
   const { login, loginWithGoogle } = useAuth();
@@ -28,8 +31,9 @@ const Login = () => {
     try {
       await login(email, password);
       router.push("/dashboard");
+      toast.success("Logged in successfully!");
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message); // changed from alert to toast
     }
   };
 
@@ -37,8 +41,18 @@ const Login = () => {
     try {
       await loginWithGoogle();
       router.push("/dashboard");
+      toast.success("Logged in with Google successfully!");
     } catch (err) {
-      alert(err.message);
+      toast.error(err.message); 
+    }
+  };
+
+  const handleResetPassword = async () => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast.success('Password reset email sent!');
+    } catch (error) {
+      toast.error(error.message);
     }
   };
 
@@ -120,6 +134,7 @@ const Login = () => {
               <Link
                 href="#"
                 className="text-sm text-blue-600 hover:underline"
+                onClick = {handleResetPassword}
               >
                 Forgot your password?
               </Link>

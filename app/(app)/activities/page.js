@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Filter, Clock, Mail, Phone, FileText } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Calendar, Filter, Clock, Mail, Phone, FileText, Search, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { DateRange } from "react-date-range";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
@@ -40,19 +43,6 @@ function getActivityIconAndColor(type) {
   };
 }
 
-// Helper to get user initials
-function getUserInitials(user) {
-  if (typeof user === "string") {
-    return user[0]?.toUpperCase() || "U";
-  }
-  return (
-    user?.name
-      ?.split(" ")
-      .map((n) => n[0])
-      .join("") || "U"
-  );
-}
-
 // Helper to format activity type
 function formatActivityType(type) {
   return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
@@ -67,7 +57,6 @@ function formatActivityTime(timestamp) {
 
 const Activities = () => {
   const [activities, setActivities] = useState([]);
-  const [activityTypes, setActivityTypes] = useState([]); // For filter dropdown
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -81,41 +70,75 @@ const Activities = () => {
     },
   ]);
 
-  // Filter state
-  const [showTypeFilter, setShowTypeFilter] = useState(false);
-  const [selectedType, setSelectedType] = useState("");
+  // Add these new state variables for filtering
+  const [selectedActivityType, setSelectedActivityType] = useState("all");
+  const [showFilters, setShowFilters] = useState(false);
+
+  // For activity type dropdown
+  const [activityTypes, setActivityTypes] = useState([]);
+
+  // Pagination states
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const LIMIT = 5; // or whatever your backend limit is
+
+  useEffect(() => {
+    setPage(1); // Reset page when user or filters change
+  }, [user, dateRange, selectedActivityType, selectedEntityType]);
 
   useEffect(() => {
     const fetchActivities = async () => {
       if (!user) {
         setLoading(false);
         setActivities([]);
-        setActivityTypes([]);
+        setHasMore(false);
         return;
       }
+      setLoading(true);
       try {
         const token = await user.getIdToken();
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}activity`, {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const params = new URLSearchParams({
+          page,
+          limit: LIMIT,
+          ...(selectedActivityType !== "all" && { type: selectedActivityType }),
+          ...(dateRange[0].startDate && dateRange[0].endDate && {
+            start: dateRange[0].startDate.toISOString(),
+            end: dateRange[0].endDate.toISOString(),
+          }),
         });
-        const result = await res.json();
-        setActivities(result || []);
-        // Extract unique activity types for filter dropdown
-        const types = Array.from(
-          new Set((result || []).map((a) => a.activityType))
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}activity?${params.toString()}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
         );
-        setActivityTypes(types);
+        const result = await res.json();
+        if (page === 1) {
+          setActivities(result || []);
+          // Extract unique activity types for filter dropdown
+          const types = Array.from(new Set((result || []).map((a) => a.activityType)));
+          setActivityTypes(types);
+        } else {
+          setActivities((prev) => [...prev, ...(result || [])]);
+          // Merge new types with previous
+          const types = Array.from(
+            new Set([...activities, ...(result || [])].map((a) => a.activityType))
+          );
+          setActivityTypes(types);
+        }
+        setHasMore(result && result.length === LIMIT);
       } catch (err) {
-        setActivities([]);
-        setActivityTypes([]);
+        if (page === 1) setActivities([]);
+        setHasMore(false);
       }
       setLoading(false);
     };
     fetchActivities();
-  }, [user]);
+    // eslint-disable-next-line
+  }, [user, page, dateRange, selectedActivityType, selectedEntityType]);
 
   // Filter activities by date range and type
   const filteredActivities = activities.filter((activity) => {
@@ -128,18 +151,20 @@ const Activities = () => {
       if (activityDate < start || activityDate > end) return false;
     }
     // Type filter
-    if (selectedType && activity.activityType !== selectedType) return false;
+    if (selectedActivityType !== "all" && activity.activityType !== selectedActivityType) return false;
     return true;
   });
 
   // Render a single activity item
   function ActivityItem({ activity }) {
     const { Icon, color } = getActivityIconAndColor(activity.activityType);
-    const initials = getUserInitials(activity.user);
+    // Remove getUserInitials if not needed
     return (
       <div key={activity._id} className="relative flex items-start gap-4">
         <div className="z-10">
-          <span className={`flex items-center justify-center h-10 w-10 rounded-full ${color} shadow-lg ring-4 ring-white`}>
+          <span
+            className={`flex items-center justify-center h-10 w-10 rounded-full ${color} shadow-lg ring-4 ring-white`}
+          >
             <Icon className="h-5 w-5 text-white" />
           </span>
         </div>
@@ -169,7 +194,9 @@ const Activities = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
             Activity Timeline
           </h1>
-          <p className="text-slate-600 mt-2">Track all interactions and activities</p>
+          <p className="text-slate-600 mt-2">
+            Track all interactions and activities
+          </p>
         </div>
       </div>
 
@@ -209,23 +236,23 @@ const Activities = () => {
             <div className="relative">
               <Button
                 variant="outline"
-                onClick={() => setShowTypeFilter((v) => !v)}
+                onClick={() => setShowFilters((v) => !v)}
               >
                 <Filter className="h-4 w-4 mr-2" />
                 Filter
               </Button>
-              {showTypeFilter && (
+              {showFilters && (
                 <div className="absolute z-50 mt-2 bg-white border rounded shadow p-2 min-w-[180px]">
                   <div className="mb-2 font-semibold text-sm">Activity Type</div>
                   <select
                     className="w-full border rounded px-2 py-1 text-sm"
-                    value={selectedType}
-                    onChange={e => {
-                      setSelectedType(e.target.value);
-                      setShowTypeFilter(false);
+                    value={selectedActivityType}
+                    onChange={(e) => {
+                      setSelectedActivityType(e.target.value);
+                      setShowFilters(false);
                     }}
                   >
-                    <option value="">All Types</option>
+                    <option value="all">All Types</option>
                     {activityTypes.map((type) => (
                       <option key={type} value={type}>
                         {formatActivityType(type)}
@@ -239,8 +266,10 @@ const Activities = () => {
             <Button
               variant="outline"
               onClick={() => {
-                setDateRange([{ startDate: null, endDate: null, key: "selection" }]);
-                setSelectedType("");
+                setDateRange([
+                  { startDate: null, endDate: null, key: "selection" },
+                ]);
+                setSelectedActivityType("all");
               }}
             >
               Clear Filters
@@ -272,6 +301,14 @@ const Activities = () => {
           </div>
         </CardContent>
       </Card>
+
+      {hasMore && !loading && (
+        <div className="flex justify-center mt-4">
+          <Button variant="outline" onClick={() => setPage((p) => p + 1)}>
+            Load More
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

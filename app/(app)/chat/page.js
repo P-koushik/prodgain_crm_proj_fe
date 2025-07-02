@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Send, Trash2, MessageSquare } from "lucide-react";
+import { Send, Trash2, MessageSquare, Loader2 } from "lucide-react";
 
 // Replace with your actual backend URL
 const socket = io("http://localhost:5000");
@@ -53,6 +53,8 @@ const Chat = () => {
   const [hasMore, setHasMore] = useState(true);
   const [chatHistory, setChatHistory] = useState(initialChatHistory);
   const [activeChatId, setActiveChatId] = useState(initialChatHistory[0].id);
+  const [isAIResponding, setIsAIResponding] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
@@ -64,11 +66,12 @@ const Chat = () => {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
     isInitialMount.current = false;
-  }, [messages]);
+  }, [messages, isAIResponding]);
 
   // Listen for AI responses
   useEffect(() => {
     socket.on("aiResponse", (response) => {
+      setIsAIResponding(false);
       setMessages(prev => {
         const newMsg = {
           id: prev.length ? prev[prev.length - 1].id + 1 : 1,
@@ -84,28 +87,31 @@ const Chat = () => {
     return () => {
       socket.off("aiResponse");
     };
+    // eslint-disable-next-line
   }, [activeChatId]);
 
-  // Infinite scroll handler
+  // Infinite scroll up handler
   const handleScroll = async () => {
     const container = messagesContainerRef.current;
-    if (container && container.scrollTop === 0 && hasMore) {
+    if (container && container.scrollTop === 0 && hasMore && !loadingOlder) {
+      setLoadingOlder(true);
       const oldestId = messages[0]?.id || 1;
       const olderMessages = await fetchOlderMessages(oldestId);
       if (olderMessages.length === 0) {
         setHasMore(false);
-        return;
+      } else {
+        setMessages(prev => [...olderMessages, ...prev]);
+        updateChatHistory(activeChatId, [...olderMessages, ...messages]);
       }
-      setMessages(prev => [...olderMessages, ...prev]);
-      updateChatHistory(activeChatId, [...olderMessages, ...messages]);
-      setTimeout(() => {
-        if (container) {
-          container.scrollTop = container.scrollHeight / 3;
-        }
-      }, 0);
+      setLoadingOlder(false);
+      // Maintain scroll position after loading more
+      if (container) {
+        container.scrollTop = 1;
+      }
     }
   };
 
+  // Update chat history with new messages
   const updateChatHistory = (chatId, newMessages) => {
     setChatHistory(prev =>
       prev.map(chat =>
@@ -121,6 +127,7 @@ const Chat = () => {
     );
   };
 
+  // Send message
   const sendMessage = () => {
     if (inputMessage.trim()) {
       setMessages(prev => {
@@ -135,9 +142,11 @@ const Chat = () => {
       });
       socket.emit("userMessage", inputMessage);
       setInputMessage("");
+      setIsAIResponding(true);
     }
   };
 
+  // Clear chat (resets current chat)
   const clearChat = () => {
     setMessages([
       {
@@ -194,100 +203,113 @@ const Chat = () => {
     <div className="h-full max-h-[calc(100vh-200px)] flex">
       {/* Sidebar for chat history */}
       <aside className="w-64 bg-slate-100 border-r flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b">
-          <span className="font-bold text-lg flex items-center gap-2">
-            <MessageSquare className="h-5 w-5" /> Chat History
-          </span>
-          <Button size="sm" variant="outline" onClick={startNewChat}>
-            New
+        <div className="p-4 border-b">
+          <Button onClick={startNewChat} className="w-full">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            New Chat
           </Button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {chatHistory.map(chat => (
+        <div className="flex-1 overflow-y-auto p-2">
+          {chatHistory.map((chat) => (
             <div
               key={chat.id}
-              className={`p-4 border-b cursor-pointer hover:bg-slate-200 ${chat.id === activeChatId ? "bg-slate-300" : ""
-                }`}
               onClick={() => switchChat(chat.id)}
+              className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${activeChatId === chat.id
+                  ? "bg-blue-100 border border-blue-200"
+                  : "hover:bg-slate-200"
+                }`}
             >
-              <div className="font-medium truncate">{chat.title}</div>
-              <div className="text-xs text-slate-500 truncate">{chat.lastMessage}</div>
-              <div className="text-xs text-slate-400">{chat.timestamp}</div>
+              <div className="font-medium text-sm truncate">{chat.title}</div>
+              <div className="text-xs text-slate-600 truncate">{chat.lastMessage}</div>
+              <div className="text-xs text-slate-500">{chat.timestamp}</div>
             </div>
           ))}
         </div>
       </aside>
 
       {/* Main chat area */}
-      <div className="flex-1 pl-0 sm:pl-6">
-        <div className="flex justify-between items-center mb-6 mt-4 sm:mt-0">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
-              AI Assistant
-            </h1>
-            <p className="text-slate-600 mt-2">Get help with your CRM tasks</p>
-          </div>
-          <Button variant="outline" onClick={clearChat}>
+      <div className="flex-1 flex flex-col">
+        {/* Chat header */}
+        <div className="p-4 border-b flex justify-between items-center">
+          <h2 className="text-lg font-semibold">
+            {chatHistory.find(c => c.id === activeChatId)?.title || "Chat"}
+          </h2>
+          <Button variant="outline" size="sm" onClick={clearChat}>
             <Trash2 className="h-4 w-4 mr-2" />
             Clear Chat
           </Button>
         </div>
 
-        <Card className="h-[calc(100vh-300px)] flex flex-col">
-          <CardHeader>
-            <CardTitle>Chat with AI Assistant</CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col">
-            {/* Messages Area with Infinite Scroll */}
-            <div
-              ref={messagesContainerRef}
-              className="flex-1 overflow-y-auto space-y-4 mb-4"
-              style={{ minHeight: 0 }}
-              onScroll={handleScroll}
-            >
-              {hasMore && (
-                <div className="text-center text-xs text-slate-400 py-2">
-                  Loading more...
-                </div>
-              )}
-              {messages.map((message) => (
-                <div key={message.id} className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`flex max-w-[70%] ${message.isUser ? 'flex-row-reverse' : 'flex-row'} items-start space-x-2`}>
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className={message.isUser ? "bg-blue-500 text-white" : "bg-purple-500 text-white"}>
-                        {message.isUser ? "U" : "AI"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className={`p-3 rounded-lg ${message.isUser
-                        ? "bg-blue-500 text-white ml-2"
-                        : "bg-slate-100 text-slate-900 mr-2"
-                      }`}>
-                      <p className="text-sm">{message.text}</p>
-                      <p className={`text-xs mt-1 ${message.isUser ? "text-blue-100" : "text-slate-500"}`}>
-                        {message.timestamp}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <div ref={messagesEndRef} />
+        {/* Messages area */}
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto p-4 space-y-4"
+          style={{ height: "500px", maxHeight: "60vh" }} // Fixed height, scrollable
+          onScroll={handleScroll}
+        >
+          {loadingOlder && (
+            <div className="flex justify-center py-2">
+              <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+              <span className="ml-2 text-slate-500">Loading more...</span>
             </div>
+          )}
 
-            {/* Input Area */}
-            <div className="flex space-x-2">
-              <Input
-                placeholder="Ask me anything about your CRM..."
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                className="flex-1"
-              />
-              <Button onClick={sendMessage} className="bg-gradient-to-r from-blue-600 to-purple-600">
-                <Send className="h-4 w-4" />
-              </Button>
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.isUser
+                    ? "bg-blue-500 text-white"
+                    : "bg-slate-100 text-slate-900"
+                  }`}
+              >
+                <div className="text-sm">{message.text}</div>
+                <div className={`text-xs mt-1 ${message.isUser ? "text-blue-100" : "text-slate-500"
+                  }`}>
+                  {message.timestamp}
+                </div>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          ))}
+
+          {isAIResponding && (
+            <div className="flex justify-start">
+              <div className="bg-slate-100 text-slate-900 max-w-xs lg:max-w-md px-4 py-2 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
+                  <span className="text-sm text-slate-600">AI is thinking...</span>
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Input area */}
+        <div className="p-4 border-t">
+          <div className="flex space-x-2">
+            <Input
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === "Enter" && sendMessage()}
+              placeholder="Type your message..."
+              disabled={isAIResponding}
+              className="flex-1"
+            />
+            <Button
+              onClick={sendMessage}
+              disabled={!inputMessage.trim() || isAIResponding}
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

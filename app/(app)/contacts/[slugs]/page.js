@@ -1,7 +1,7 @@
 'use client';
 
-import { useRouter, useParams ,useSearchParams} from 'next/navigation';
-import { useState ,useEffect} from 'react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Edit, Trash2, Mail, Phone, Building } from 'lucide-react';
@@ -17,16 +17,17 @@ import { auth } from '@/firebase';
 import { getIdToken } from 'firebase/auth';
 import EditContactDialog from '@/components/ContactEdit';
 import { toast } from "sonner";
+import { getAlltags } from "@/lib/services/tagService.js";
 
 // TanStack Query function to get contact by ID
 const getContactById = async (contactId) => {
   if (!contactId) throw new Error('Contact ID is required');
-  
+
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('User not authenticated');
-  
+
   const token = await getIdToken(currentUser);
-  
+
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`, {
     method: 'GET',
     headers: {
@@ -41,21 +42,22 @@ const getContactById = async (contactId) => {
   }
 
   const data = await res.json();
-  
+
   if (!data.contact) {
     throw new Error('Contact not found in response');
   }
-  
+
   return data.contact;
+
 };
 
 // TanStack Query function to update contact
 const updateContactById = async ({ contactId, formData }) => {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('User not authenticated');
-  
+
   const token = await getIdToken(currentUser);
-  
+
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`, {
     method: 'PUT',
     headers: {
@@ -78,9 +80,9 @@ const updateContactById = async ({ contactId, formData }) => {
 const deleteContactById = async (contactId) => {
   const currentUser = auth.currentUser;
   if (!currentUser) throw new Error('User not authenticated');
-  
+
   const token = await getIdToken(currentUser);
-  
+
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`, {
     method: 'DELETE',
     headers: {
@@ -114,19 +116,33 @@ export default function ContactDetail() {
       setIsEditModalOpen(true);
     }
   }, [searchParams]);
-  
 
-  const { 
-    data: contact, 
-    isLoading, 
-    error, 
-    isError 
+
+  const {
+    data: contact,
+    isLoading,
+    error,
+    isError
   } = useQuery({
     queryKey: ["contact", contactId],
     queryFn: () => getContactById(contactId),
     enabled: !!contactId, // Only run query if contactId exists
     retry: 1,
     staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
+  console.log("fsg", contact)
+
+  // Fetch all tags for color mapping
+  const { data: tagdata } = useQuery({
+    queryKey: ["tags"],
+    queryFn: () => getAlltags('', null, null, ''),
+    enabled: true
+  });
+  const allTags = tagdata?.tags || [];
+  const tagColorMap = {};
+  allTags.forEach(tag => {
+    tagColorMap[tag.name] = tag.color;
   });
 
   // TanStack Mutation for updating contact
@@ -200,8 +216,8 @@ export default function ContactDetail() {
           <p className="text-sm">{error?.message || 'An unexpected error occurred'}</p>
         </div>
         <div className="space-x-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => queryClient.invalidateQueries({ queryKey: ["contact", contactId] })}
           >
             Try Again
@@ -263,7 +279,7 @@ export default function ContactDetail() {
         </div>
 
         <div className="flex space-x-2">
-          <EditContactDialog 
+          <EditContactDialog
             isOpen={isEditModalOpen}
             setIsOpen={setIsEditModalOpen}
             contact={contact}
@@ -274,8 +290,8 @@ export default function ContactDetail() {
           {/* Delete Dialog */}
           <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
             <DialogTrigger asChild>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="text-red-600 hover:text-red-700"
                 disabled={deleteMutation.isPending}
               >
@@ -291,15 +307,15 @@ export default function ContactDetail() {
                 </DialogDescription>
               </DialogHeader>
               <div className="flex justify-end space-x-2">
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => setIsDeleteDialogOpen(false)}
                   disabled={deleteMutation.isPending}
                 >
                   Cancel
                 </Button>
-                <Button 
-                  variant="destructive" 
+                <Button
+                  variant="destructive"
                   onClick={handleDelete}
                   disabled={deleteMutation.isPending}
                 >
@@ -338,7 +354,14 @@ export default function ContactDetail() {
             <div className="flex flex-wrap gap-2">
               {(contact.tags && contact.tags.length > 0) ? (
                 contact.tags.map((tag, index) => (
-                  <Badge key={index} variant="secondary" className={getTagColor(tag)}>
+                  <Badge
+                    key={index}
+                    variant="secondary"
+                    style={{
+                      backgroundColor: tagColorMap[tag] || "#e5e7eb",
+                      color: "#222"
+                    }}
+                  >
                     {tag}
                   </Badge>
                 ))
