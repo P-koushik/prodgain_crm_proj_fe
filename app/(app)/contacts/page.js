@@ -319,6 +319,16 @@ const Contacts = () => {
     return pages;
   };
 
+  const initials = (contact) => {
+    // console.log("Contact:", contact.split(' '));
+    return contact.split(' ').map(contact => {
+      const nameParts = contact;
+      return nameParts.length > 1
+        ? `${nameParts[0][0]}`
+        : nameParts[0][0];
+    });
+  }
+
   const GridView = () => (
     <div className="space-y-4">
       {/* Select All for Grid View */}
@@ -347,7 +357,7 @@ const Contacts = () => {
                   <Avatar className="h-10 w-10">
                     <AvatarImage src="/placeholder.svg" />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                      {contact.avatar}
+                      {contact.avatar  || initials(contact.name)} 
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -390,7 +400,7 @@ const Contacts = () => {
                       className="text-xs"
                       style={{
                         backgroundColor: tagColorMap[tag] || "#e5e7eb",
-                        color: "#222"
+                        color: "#ffffff"
                       }}
                     >
                       {tag}
@@ -487,7 +497,7 @@ const Contacts = () => {
                     className="text-xs"
                     style={{
                       backgroundColor: tagColorMap[tag] || "#e5e7eb",
-                      color: "#222"
+                      color: "#ffffff"
                     }}
                   >
                     {tag}

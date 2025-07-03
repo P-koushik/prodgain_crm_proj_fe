@@ -11,7 +11,7 @@ import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
 const iconMap = {
-  email: "mail",
+  email: "bg-blue-500",
   call: "bg-green-500",
   note: "bg-orange-500",
   generic: "bg-gray-500",
