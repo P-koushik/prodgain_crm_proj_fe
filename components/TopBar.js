@@ -62,7 +62,7 @@ const TopBar = () => {
         }
       }
       fetchResults();
-    }, 300); // 300ms debounce
+    }, 500); 
 
     return () => clearTimeout(handler);
   }, [query]);

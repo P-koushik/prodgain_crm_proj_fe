@@ -1,115 +1,155 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react";
-import io from "socket.io-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Send, Trash2, MessageSquare, Loader2 } from "lucide-react";
-
-// Replace with your actual backend URL
-const socket = io("http://localhost:5000");
-
-const MESSAGES_PER_LOAD = 20;
-
-// Simulate fetching older messages (replace with your API)
-const fetchOlderMessages = async (oldestId) => {
-  if (oldestId <= 1) return [];
-  const start = Math.max(1, oldestId - MESSAGES_PER_LOAD);
-  const messages = [];
-  for (let i = oldestId - 1; i >= start; i--) {
-    messages.unshift({
-      id: i,
-      text: `Older message #${i}`,
-      isUser: i % 2 === 0,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    });
-  }
-  return messages;
-};
-
-// Simulate chat history (replace with your API if needed)
-const initialChatHistory = [
-  {
-    id: 1,
-    title: "Welcome Chat",
-    lastMessage: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    messages: [
-      {
-        id: 1,
-        text: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
-        isUser: false,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]
-  }
-];
+import { auth } from "@/firebase";
+import { getIdToken } from "firebase/auth";
+import { v4 as uuidv4 } from "uuid";
 
 const Chat = () => {
-  const [messages, setMessages] = useState(initialChatHistory[0].messages);
+  const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState("");
-  const [hasMore, setHasMore] = useState(true);
-  const [chatHistory, setChatHistory] = useState(initialChatHistory);
-  const [activeChatId, setActiveChatId] = useState(initialChatHistory[0].id);
+  const [chatHistory, setChatHistory] = useState([]);
+  const [activeChatId, setActiveChatId] = useState(null);
   const [isAIResponding, setIsAIResponding] = useState(false);
-  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const isInitialMount = useRef(true);
 
-  // Scroll to bottom when new message arrives (except on initial mount)
+  // Get auth token
+  const getAuthToken = async () => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("User not authenticated");
+    return await getIdToken(currentUser);
+  };
+
+  // Fetch chat history from backend
+  const fetchChatHistory = async () => {
+    try {
+      setLoadingHistory(true);
+      const token = await getAuthToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}chat/history`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        credentials: "include"
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch chat history");
+      
+      const data = await response.json() || [];
+      
+      // Group messages by conversation ID and create chat history
+      const conversationsMap = new Map();
+      
+       data.forEach(conversation => {
+        conversationsMap.set(conversation?.conversationId, {
+          id: conversation?.conversationId,
+          title: `Chat - ${new Date(conversation?.messages[0]?.timestamp).toLocaleDateString()}`,
+          lastMessage: conversation.messages[conversation?.messages.length - 1]?.message || "",
+          timestamp: conversation.messages[conversation.messages.length - 1]?.timestamp || "",
+          messages: conversation.messages.map(msg => ({
+            id: msg._id || uuidv4(),
+            text: msg.message,
+            isUser: msg.sender === "user",
+            timestamp: new Date(msg.timestamp).toLocaleTimeString([], { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })
+          }))
+        });
+      });
+
+      const chatHistoryArray = Array.from(conversationsMap.values());
+      setChatHistory(chatHistoryArray);
+      
+      // If no active chat and we have chats, set the first one as active
+      if (chatHistoryArray.length > 0 && !activeChatId) {
+        const firstChat = chatHistoryArray[0];
+        setActiveChatId(firstChat.id);
+        setMessages(firstChat.messages);
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+      // If no history exists, create initial welcome chat
+      createInitialChat();
+    } finally {
+      setLoadingHistory(false);
+      setIsInitialLoad(false);
+    }
+  };
+
+  // Create initial welcome chat
+  const createInitialChat = () => {
+    const welcomeMsg = {
+      id: uuidv4(),
+      text: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
+      isUser: false,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    const newChatId = uuidv4();
+    const newChat = {
+      id: newChatId,
+      title: "New Chat",
+      lastMessage: welcomeMsg.text,
+      timestamp: welcomeMsg.timestamp,
+      messages: [welcomeMsg]
+    };
+    
+    setChatHistory([newChat]);
+    setActiveChatId(newChatId);
+    setMessages([welcomeMsg]);
+  };
+  
+
+  // Send message to API
+  const sendMessageToAPI = async (messageText, conversationId) => {
+    try {
+      const token = await getAuthToken();
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}chat/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          message: messageText,
+          conversationId: conversationId 
+        })
+      });
+
+      if (!response.ok) throw new Error("Failed to send message");
+      
+      const data = await response.json();
+      return data.response;
+    } catch (error) {
+      console.error("Error sending message:", error);
+      throw error;
+    }
+  };
+
+  // Load initial chat history
+  useEffect(() => {
+    if (auth.currentUser) {
+      fetchChatHistory();
+    }
+  }, []);
+
+  // Scroll to bottom when new message arrives
   useEffect(() => {
     if (!isInitialMount.current && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
     isInitialMount.current = false;
   }, [messages, isAIResponding]);
-
-  // Listen for AI responses
-  useEffect(() => {
-    socket.on("aiResponse", (response) => {
-      setIsAIResponding(false);
-      setMessages(prev => {
-        const newMsg = {
-          id: prev.length ? prev[prev.length - 1].id + 1 : 1,
-          text: response,
-          isUser: false,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        updateChatHistory(activeChatId, [...prev, newMsg]);
-        return [...prev, newMsg];
-      });
-    });
-
-    return () => {
-      socket.off("aiResponse");
-    };
-    // eslint-disable-next-line
-  }, [activeChatId]);
-
-  // Infinite scroll up handler
-  const handleScroll = async () => {
-    const container = messagesContainerRef.current;
-    if (container && container.scrollTop === 0 && hasMore && !loadingOlder) {
-      setLoadingOlder(true);
-      const oldestId = messages[0]?.id || 1;
-      const olderMessages = await fetchOlderMessages(oldestId);
-      if (olderMessages.length === 0) {
-        setHasMore(false);
-      } else {
-        setMessages(prev => [...olderMessages, ...prev]);
-        updateChatHistory(activeChatId, [...olderMessages, ...messages]);
-      }
-      setLoadingOlder(false);
-      // Maintain scroll position after loading more
-      if (container) {
-        container.scrollTop = 1;
-      }
-    }
-  };
 
   // Update chat history with new messages
   const updateChatHistory = (chatId, newMessages) => {
@@ -128,76 +168,119 @@ const Chat = () => {
   };
 
   // Send message
-  const sendMessage = () => {
-    if (inputMessage.trim()) {
+  const sendMessage = async () => {
+    if (!inputMessage.trim()) return;
+
+    const userMessage = {
+      id: uuidv4(),
+      text: inputMessage,
+      isUser: true,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+
+    // Add user message to UI
+    setMessages(prev => {
+      const newMessages = [...prev, userMessage];
+      updateChatHistory(activeChatId, newMessages);
+      return newMessages;
+    });
+
+    const currentMessage = inputMessage;
+    setInputMessage("");
+    setIsAIResponding(true);
+
+    try {
+      // Send to API and get response
+      const aiResponse = await sendMessageToAPI(currentMessage, activeChatId);
+      
+      // Add AI response to UI
+      const aiMessage = {
+        id: uuidv4(),
+        text: aiResponse,
+        isUser: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
       setMessages(prev => {
-        const newMsg = {
-          id: prev.length ? prev[prev.length - 1].id + 1 : 1,
-          text: inputMessage,
-          isUser: true,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        };
-        updateChatHistory(activeChatId, [...prev, newMsg]);
-        return [...prev, newMsg];
+        const newMessages = [...prev, aiMessage];
+        updateChatHistory(activeChatId, newMessages);
+        return newMessages;
       });
-      socket.emit("userMessage", inputMessage);
-      setInputMessage("");
-      setIsAIResponding(true);
+    } catch (error) {
+      console.error("Error getting AI response:", error);
+      // Add error message to UI
+      const errorMessage = {
+        id: uuidv4(),
+        text: "Sorry, I'm having trouble responding right now. Please try again.",
+        isUser: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      setMessages(prev => {
+        const newMessages = [...prev, errorMessage];
+        updateChatHistory(activeChatId, newMessages);
+        return newMessages;
+      });
+    } finally {
+      setIsAIResponding(false);
     }
   };
 
-  // Clear chat (resets current chat)
+  // Clear current chat
   const clearChat = () => {
-    setMessages([
-      {
-        id: 1,
-        text: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
-        isUser: false,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
-    setHasMore(true);
-    updateChatHistory(activeChatId, [
-      {
-        id: 1,
-        text: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
-        isUser: false,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
-  };
-
-  // Start a new chat
-  const startNewChat = () => {
-    const newId = chatHistory.length ? chatHistory[chatHistory.length - 1].id + 1 : 1;
     const welcomeMsg = {
-      id: 1,
+      id: uuidv4(),
       text: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
       isUser: false,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
+    
+    setMessages([welcomeMsg]);
+    updateChatHistory(activeChatId, [welcomeMsg]);
+  };
+
+  // Start a new chat
+  const startNewChat = () => {
+    const welcomeMsg = {
+      id: uuidv4(),
+      text: "Hello! I'm your AI assistant. How can I help you with your CRM today?",
+      isUser: false,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    const newChatId = uuidv4();
     const newChat = {
-      id: newId,
-      title: `Chat #${newId}`,
+      id: newChatId,
+      title: "New Chat",
       lastMessage: welcomeMsg.text,
       timestamp: welcomeMsg.timestamp,
       messages: [welcomeMsg]
     };
-    setChatHistory(prev => [...prev, newChat]);
-    setActiveChatId(newId);
+    
+    setChatHistory(prev => [newChat, ...prev]);
+    setActiveChatId(newChatId);
     setMessages([welcomeMsg]);
-    setHasMore(true);
   };
 
-  // Switch chat
+  // Switch to different chat
   const switchChat = (chatId) => {
     const chat = chatHistory.find(c => c.id === chatId);
     if (chat) {
       setActiveChatId(chatId);
       setMessages(chat.messages);
-      setHasMore(true);
     }
   };
+
+  if (isInitialLoad) {
+    return (
+      <div className="h-full max-h-[calc(100vh-200px)] flex items-center justify-center">
+        <div className="flex items-center space-x-2">
+          <Loader2 className="h-6 w-6 animate-spin" />
+          <span>Loading chat history...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full max-h-[calc(100vh-200px)] flex">
@@ -210,20 +293,29 @@ const Chat = () => {
           </Button>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {chatHistory.map((chat) => (
-            <div
-              key={chat.id}
-              onClick={() => switchChat(chat.id)}
-              className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${activeChatId === chat.id
-                ? "bg-blue-100 border border-blue-200"
-                : "hover:bg-slate-200"
-                }`}
-            >
-              <div className="font-medium text-sm truncate">{chat.title}</div>
-              <div className="text-xs text-slate-600 truncate">{chat.lastMessage}</div>
-              <div className="text-xs text-slate-500">{chat.timestamp}</div>
+          {loadingHistory ? (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-4 w-4 animate-spin" />
             </div>
-          ))}
+          ) : (
+            chatHistory.map((chat) => (
+              <div
+                key={chat.id}
+                onClick={() => switchChat(chat.id)}
+                className={`p-3 rounded-lg cursor-pointer mb-2 transition-colors ${
+                  activeChatId === chat.id
+                    ? "bg-blue-100 border border-blue-200"
+                    : "hover:bg-slate-200"
+                }`}
+              >
+                <div className="font-medium text-sm truncate">{chat.title}</div>
+                <div className="text-xs text-slate-600 truncate">{chat.lastMessage}</div>
+                <div className="text-xs text-slate-500">
+                  {chat.timestamp && new Date(chat.timestamp).toLocaleString()}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </aside>
 
@@ -244,30 +336,24 @@ const Chat = () => {
         <div
           ref={messagesContainerRef}
           className="flex-1 overflow-y-auto p-4 space-y-4"
-          style={{ height: "500px", maxHeight: "60vh" }} // Fixed height, scrollable
-          onScroll={handleScroll}
+          style={{ height: "500px", maxHeight: "60vh" }}
         >
-          {loadingOlder && (
-            <div className="flex justify-center py-2">
-              <Loader2 className="h-4 w-4 animate-spin text-slate-500" />
-              <span className="ml-2 text-slate-500">Loading more...</span>
-            </div>
-          )}
-
           {messages.map((message) => (
             <div
               key={message.id}
               className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${message.isUser
-                  ? "bg-blue-500 text-white"
-                  : "bg-slate-100 text-slate-900"
-                  }`}
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                  message.isUser
+                    ? "bg-blue-500 text-white"
+                    : "bg-slate-100 text-slate-900"
+                }`}
               >
                 <div className="text-sm">{message.text}</div>
-                <div className={`text-xs mt-1 ${message.isUser ? "text-blue-100" : "text-slate-500"
-                  }`}>
+                <div className={`text-xs mt-1 ${
+                  message.isUser ? "text-blue-100" : "text-slate-500"
+                }`}>
                   {message.timestamp}
                 </div>
               </div>
