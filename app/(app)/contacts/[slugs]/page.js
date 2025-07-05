@@ -274,6 +274,7 @@ export default function ContactDetail() {
       queryClient.setQueryData(["contact", contactId], updatedContact);
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       queryClient.invalidateQueries({ queryKey: ["activities", contactId] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       setIsEditModalOpen(false);
       toast.success("Contact updated successfully.");
     },
@@ -289,6 +290,7 @@ export default function ContactDetail() {
       queryClient.invalidateQueries({ queryKey: ["contacts"] });
       queryClient.removeQueries({ queryKey: ["contact", contactId] });
       queryClient.removeQueries({ queryKey: ["activities", contactId] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
       toast.success("Contact deleted successfully.");
       router.push("/contacts");
     },
@@ -297,17 +299,6 @@ export default function ContactDetail() {
       toast.error(`Failed to delete contact: ${error.message}`);
     },
   });
-
-  const getTagColor = (tag) => {
-    const colors = {
-      "Hot Lead": "bg-red-100 text-red-800",
-      Customer: "bg-green-100 text-green-800",
-      Prospect: "bg-blue-100 text-blue-800",
-      Enterprise: "bg-purple-100 text-purple-800",
-      Design: "bg-orange-100 text-orange-800",
-    };
-    return colors[tag] || "bg-gray-100 text-gray-800";
-  };
 
   const handleDelete = () => {
     if (!contactId) return;
@@ -406,11 +397,7 @@ export default function ContactDetail() {
                 {contact.name || "Unknown Contact"}
               </h1>
               <p className="text-slate-600">
-                {contact.position
-                  ? `${contact.position}${
-                      contact.company ? ` at ${contact.company}` : ""
-                    }`
-                  : contact.company || "No company specified"}
+                {contact.company || "No company specified"}
               </p>
             </div>
           </div>
@@ -423,6 +410,7 @@ export default function ContactDetail() {
             contact={contact}
             isUpdating={updateMutation.isPending}
             onUpdate={handleUpdate}
+            allTags={allTags}
           />
 
           {/* Delete Dialog */}
