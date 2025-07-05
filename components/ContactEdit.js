@@ -31,7 +31,7 @@ export default function EditContactDialog({
             await onUpdate(formData);
           }}
         >
-          {["name", "email", "phone", "company", "position", "notes"].map((field) => (
+          {["name", "email", "phone", "company", "tags", "notes"].map((field) => (
             <div className="space-y-2" key={field}>
               <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
               {field === "notes" ? (
@@ -46,7 +46,7 @@ export default function EditContactDialog({
                   id={field}
                   name={field}
                   defaultValue={contact[field] || ""}
-                  placeholder={`Enter ${field}...`}
+                  placeholder={field === "tags" ? "Enter tags (comma-separated)..." : `Enter ${field}...`}
                   type={field === "email" ? "email" : field === "phone" ? "tel" : "text"}
                 />
               )}
