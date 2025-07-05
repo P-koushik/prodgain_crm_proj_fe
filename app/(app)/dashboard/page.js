@@ -29,7 +29,7 @@ const Dashboard = () => {
   });
 
   const contacts = contactData?.data.allContacts || [];
-  const tags = contactData?.data.tags || []; // Use tags from the tags model
+  const tags = contactData?.data.tagDistribution || [];
   const showDataAccordingToDay = contactData?.data.activitiesByDay;
   const countbycompany = contactData?.data.contactsByCompany || [];
   const activities = activityData || [];
