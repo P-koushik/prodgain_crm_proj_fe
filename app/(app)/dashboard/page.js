@@ -29,7 +29,7 @@ const Dashboard = () => {
   });
 
   const contacts = contactData?.data.allContacts || [];
-  const tags = contactData?.data.tagDistribution || [];
+  const tags = tagData?.data || []; // Use tags from the tags model
   const showDataAccordingToDay = contactData?.data.activitiesByDay;
   const countbycompany = contactData?.data.contactsByCompany || [];
   const activities = activityData || [];
@@ -102,7 +102,7 @@ const Dashboard = () => {
   const tagDistribution = Object.entries(tagCounts)
     .map(([name, count]) => {
       const percentage = totalTaggedContacts > 0 ? Math.round((count / totalTaggedContacts) * 100) : 0;
-      // Get color from tags array or use default
+      // Get color from tags model
       const tagObj = tags.find(t => t.name === name);
       const color = tagObj?.color || "#6b7280";
       return { name, value: percentage, color, count };
@@ -298,7 +298,7 @@ const Dashboard = () => {
                     cy="50%"
                     innerRadius={60}
                     outerRadius={120}
-                    paddingAngle={5}
+                    paddingAngle={0}
                     dataKey="value"
                   >
                     {tagDistribution.map((entry, index) => (
@@ -335,3 +335,4 @@ const Dashboard = () => {
 };
 
 export default Dashboard;
+

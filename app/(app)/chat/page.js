@@ -28,6 +28,18 @@ const Chat = () => {
     return await getIdToken(currentUser);
   };
 
+  // Generate a better chat title based on first message
+  const generateChatTitle = (firstMessage) => {
+    if (!firstMessage) return "New Chat";
+    
+    // Take first 30 characters and add ellipsis if longer
+    const title = firstMessage.length > 30 
+      ? firstMessage.substring(0, 30) + "..." 
+      : firstMessage;
+    
+    return title;
+  };
+
   // Fetch chat history from backend
   const fetchChatHistory = async () => {
     try {
@@ -42,35 +54,43 @@ const Chat = () => {
         credentials: "include"
       });
 
-      if (!response.ok) throw new Error("Failed to fetch chat history");
+      if (!response.ok) {
+        if (response.status === 404) {
+          // No chat history found, create initial chat
+          createInitialChat();
+          return;
+        }
+        throw new Error("Failed to fetch chat history");
+      }
       
       const data = await response.json() || [];
+      console.log("Fetched chat data:", data);
       
-      // Group messages by conversation ID and create chat history
-      const conversationsMap = new Map();
-      
-       data.forEach(conversation => {
-        conversationsMap.set(conversation?.conversationId, {
-          id: conversation?.conversationId,
-          title: `Chat - ${new Date(conversation?.messages[0]?.timestamp).toLocaleDateString()}`,
-          lastMessage: conversation.messages[conversation?.messages.length - 1]?.message || "",
-          timestamp: conversation.messages[conversation.messages.length - 1]?.timestamp || "",
-          messages: conversation.messages.map(msg => ({
-            id: msg._id || uuidv4(),
-            text: msg.message,
-            isUser: msg.sender === "user",
-            timestamp: new Date(msg.timestamp).toLocaleTimeString([], { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            })
-          }))
-        });
-      });
+      if (data.length === 0) {
+        createInitialChat();
+        return;
+      }
 
-      const chatHistoryArray = Array.from(conversationsMap.values());
+      // Transform the data to match frontend format
+      const chatHistoryArray = data.map(conversation => ({
+        id: conversation.conversationId,
+        title: conversation.title || generateChatTitle(conversation.messages[0]?.message),
+        lastMessage: conversation.messages[conversation.messages.length - 1]?.message || "",
+        timestamp: conversation.messages[conversation.messages.length - 1]?.timestamp || conversation.updatedAt,
+        messages: conversation.messages.map(msg => ({
+          id: msg._id || uuidv4(),
+          text: msg.message,
+          isUser: msg.sender === "user",
+          timestamp: new Date(msg.timestamp).toLocaleTimeString([], { 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          })
+        }))
+      }));
+
       setChatHistory(chatHistoryArray);
       
-      // If no active chat and we have chats, set the first one as active
+      // Set the first chat as active if no active chat
       if (chatHistoryArray.length > 0 && !activeChatId) {
         const firstChat = chatHistoryArray[0];
         setActiveChatId(firstChat.id);
@@ -78,7 +98,7 @@ const Chat = () => {
       }
     } catch (error) {
       console.error("Error fetching chat history:", error);
-      // If no history exists, create initial welcome chat
+      // If error occurs, create initial welcome chat
       createInitialChat();
     } finally {
       setLoadingHistory(false);
@@ -100,7 +120,7 @@ const Chat = () => {
       id: newChatId,
       title: "New Chat",
       lastMessage: welcomeMsg.text,
-      timestamp: welcomeMsg.timestamp,
+      timestamp: new Date().toISOString(),
       messages: [welcomeMsg]
     };
     
@@ -108,7 +128,6 @@ const Chat = () => {
     setActiveChatId(newChatId);
     setMessages([welcomeMsg]);
   };
-  
 
   // Send message to API
   const sendMessageToAPI = async (messageText, conversationId) => {
@@ -160,7 +179,11 @@ const Chat = () => {
             ...chat,
             messages: newMessages,
             lastMessage: newMessages[newMessages.length - 1]?.text || "",
-            timestamp: newMessages[newMessages.length - 1]?.timestamp || ""
+            timestamp: new Date().toISOString(),
+            // Update title if it's still "New Chat" and we have user messages
+            title: chat.title === "New Chat" && newMessages.length > 1 
+              ? generateChatTitle(newMessages.find(msg => msg.isUser)?.text)
+              : chat.title
           }
           : chat
       )
@@ -253,7 +276,7 @@ const Chat = () => {
       id: newChatId,
       title: "New Chat",
       lastMessage: welcomeMsg.text,
-      timestamp: welcomeMsg.timestamp,
+      timestamp: new Date().toISOString(),
       messages: [welcomeMsg]
     };
     

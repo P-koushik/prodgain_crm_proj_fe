@@ -1,297 +1,3 @@
-// "use client";
-
-// import { useEffect, useState } from "react";
-// import { Button } from "@/components/ui/button";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-// import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-// import { Camera, Pencil } from "lucide-react";
-// import axios from "axios";
-// import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-// import { auth } from "@/firebase";
-// import { getIdToken } from "firebase/auth";
-// import { toast } from "sonner";
-// import { ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
-// import { storage } from "@/firebase"; // Ensure you have Firebase storage initialized
-// const Profile = () => {
-//   const [profile, setProfile] = useState({
-//     firstname: "",
-//     lastname: "",
-//     email: "",
-//     phone: "",
-//     company: "",
-//     avatar: "",
-//   });
-//   const [loading, setLoading] = useState(true);
-//   const [editOpen, setEditOpen] = useState(false);
-//   const [editProfile, setEditProfile] = useState(profile);
-//   console.log("profile", profile);
-
-//    const handleUpload = () => {
-//     if (!image) return alert("Please select an image first!");
-
-//     const storageRef = ref(storage, `uploads/${Date.now()}_${image.name}`);
-//     const uploadTask = uploadBytesResumable(storageRef, image);
-
-//     uploadTask.on(
-//       "state_changed",
-//       (snapshot) => {
-//         // Progress
-//         const percent = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-//         setProgress(percent);
-//       },
-//       (error) => {
-//         console.error("Upload error:", error);
-//       },
-//       () => {
-//         // Get URL
-//         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-//           setUrl(downloadURL);
-//           console.log("File available at", downloadURL);
-//         });
-//       }
-//     );
-//   };
-
-//   useEffect(() => {
-//     const fetchProfile = async () => {
-//       try {
-//         const currentUser = auth.currentUser;
-//         if (!currentUser) {
-//           toast.error("You must be logged in");
-//           return;
-//         }
-//         const token = await getIdToken(currentUser);
-//         const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}profile`, {
-//           method: "GET",
-//           headers: {
-//             "Content-Type": "application/json",
-//             "Authorization": `Bearer ${token}`,
-//           },
-//         });
-//         const data = await res.json(); // Parse JSON
-//         if (data && data.user) {
-
-//           setProfile({
-//             firstname: data.user.name?.split(" ")[0] || "",
-//             lastname: data.user.name?.split(" ").slice(1).join(" ") || "",
-//             email: data.user.email || "",
-//             phone: data.user.phone || "",
-//             company: data.user.company || "",
-//             avatar: data.user.avatar || "",
-//           });
-
-//         }
-//       } catch (err) {
-//         toast.error("Failed to load profile.");
-//       }
-//       setLoading(false);
-//     };
-
-//     fetchProfile();
-//   }, []);
-
-//   const handleEdit = () => {
-//     setEditProfile(profile);
-//     setEditOpen(true);
-//   };
-
-//   console.log("url",profile.avatar)
-
-//   const handleEditChange = (e) => {
-//     const { name, value } = e.target;
-//     setEditProfile((prev) => ({
-//       ...prev,
-//       [name]: value,
-//     }));
-//   };
-
-//   const handleEditSubmit = async (e) => {
-//     e.preventDefault();
-//     try {
-//       const currentUser = auth.currentUser;
-//       if (!currentUser) {
-//         toast.error("You must be logged in");
-//         return;
-//       }
-//       const token = await getIdToken(currentUser);
-//       const res = await axios.put(
-//         `${process.env.NEXT_PUBLIC_API_URL}profile`,
-//         {
-//           name: `${editProfile.firstname} ${editProfile.lastname}`,
-//           email: editProfile.email,
-//           phone: editProfile.phone,
-//           company: editProfile.company,
-//         },
-//         {
-//           headers: {
-//             "Content-Type": "application/json",
-//             "Authorization": `Bearer ${token}`,
-//           },
-//         }
-//       );
-
-//       if (res.data && res.data.user) {
-//         const [firstname, ...rest] = res.data.user.name?.split(" ") || ["", ""];
-//         const lastname = rest.join(" ");
-//         setProfile({
-//           firstname,
-//           lastname,
-//           email: res.data.user.email,
-//           phone: res.data.user.phone,
-//           company: res.data.user.company,
-//           avatar: res.data.user.avatar || "",
-//         });
-//         setEditOpen(false);
-//         toast.success("Profile updated successfully!");
-//       }
-//     } catch (err) {
-//       toast.error("Failed to update profile.");
-//     }
-//   };
-
-//   if (loading) {
-//     return <div>Loading...</div>;
-//   }
-
-//   return (
-//     <div className="space-y-6 max-w-4xl">
-//       <div>
-//         <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
-//           Profile Settings
-//         </h1>
-//         <p className="text-slate-600 mt-2">Manage your account information</p>
-//       </div>
-
-//       <Card>
-//         <CardHeader>
-//           <CardTitle>Profile Information</CardTitle>
-//           <CardDescription>Update your personal details</CardDescription>
-//         </CardHeader>
-//         <CardContent className="space-y-6">
-//           <div className="flex items-center space-x-4">
-//             <Avatar className="h-20 w-20">
-//               <AvatarImage src={profile.avatar || "https://cdn.pixabay.com/photo/2023/02/18/11/00/icon-7797704_640.png"} />
-//               {/* <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-xl">
-//                 {profile.firstname?.[0] || "U"}
-//                 {profile.lastname?.[0] || ""}
-//               </AvatarFallback> */}
-//             </Avatar>
-//             <div>
-//               <Button variant="outline" className="relative" onClick={handleUpload}>
-//                 <Camera className="h-4 w-4 mr-2" />
-//                 Change Avatar
-//                 <input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>e.target.files[0]} />
-//               </Button>
-//               <p className="text-sm text-slate-500 mt-1">JPG, PNG or GIF. Max size 2MB.</p>
-//             </div>
-//           </div>
-
-//           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//             <div>
-//               <Label>First Name</Label>
-//               <div className="border rounded px-3 py-2 bg-slate-50">{profile.firstname}</div>
-//             </div>
-//             <div>
-//               <Label>Last Name</Label>
-//               <div className="border rounded px-3 py-2 bg-slate-50">{profile.lastname}</div>
-//             </div>
-//             <div>
-//               <Label>Email</Label>
-//               <div className="border rounded px-3 py-2 bg-slate-50">{profile.email}</div>
-//             </div>
-//             <div>
-//               <Label>Phone</Label>
-//               <div className="border rounded px-3 py-2 bg-slate-50">{profile.phone}</div>
-//             </div>
-//             <div>
-//               <Label>Company</Label>
-//               <div className="border rounded px-3 py-2 bg-slate-50">{profile.company}</div>
-//             </div>
-//           </div>
-
-//           <Button className="mt-4" variant="outline" onClick={handleEdit}>
-//             <Pencil className="h-4 w-4 mr-2" />
-//             Edit
-//           </Button>
-//         </CardContent>
-//       </Card>
-
-//       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-//         <DialogContent>
-//           <DialogHeader>
-//             <DialogTitle>Edit Profile</DialogTitle>
-//             <DialogDescription>Update your personal details</DialogDescription>
-//           </DialogHeader>
-//           <form onSubmit={handleEditSubmit} className="space-y-4">
-//             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-//               <div className="space-y-2">
-//                 <Label htmlFor="firstname">First Name</Label>
-//                 <Input
-//                   id="firstname"
-//                   name="firstname"
-//                   value={editProfile.firstname}
-//                   onChange={handleEditChange}
-//                 />
-//               </div>
-//               <div className="space-y-2">
-//                 <Label htmlFor="lastname">Last Name</Label>
-//                 <Input
-//                   id="lastname"
-//                   name="lastname"
-//                   value={editProfile.lastname}
-//                   onChange={handleEditChange}
-//                 />
-//               </div>
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="email">Email</Label>
-//               <Input
-//                 id="email"
-//                 name="email"
-//                 type="email"
-//                 value={editProfile.email}
-//                 onChange={handleEditChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="phone">Phone</Label>
-//               <Input
-//                 id="phone"
-//                 name="phone"
-//                 value={editProfile.phone}
-//                 onChange={handleEditChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="company">Company</Label>
-//               <Input
-//                 id="company"
-//                 name="company"
-//                 value={editProfile.company}
-//                 onChange={handleEditChange}
-//               />
-//             </div>
-//             <div className="flex justify-end space-x-2">
-//               <Button variant="outline" type="button" onClick={() => setEditOpen(false)}>
-//                 Cancel
-//               </Button>
-//               <Button className="bg-gradient-to-r from-blue-600 to-purple-600" type="submit">
-//                 Save Changes
-//               </Button>
-//             </div>
-//           </form>
-//         </DialogContent>
-//       </Dialog>
-//     </div>
-//   );
-// };
-
-// export default Profile;
-
-
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -341,54 +47,74 @@ const Profile = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   const uploadToCloudinary = async (file) => {
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("upload_preset", "profilepicks"); // must be exact
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "profilepicks"); // must be exact
+    formData.append("folder", "avatars"); // organize uploads
 
-  try {
-    setUploading(true);
-    setUploadProgress(0);
+    try {
+      setUploading(true);
+      setUploadProgress(0);
 
-    const response = await axios.post(
-      "https://api.cloudinary.com/v1_1/ddlrkl4jy/upload",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        onUploadProgress: (progressEvent) => {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          setUploadProgress(progress);
-        },
+      console.log("Uploading file:", file.name, "Size:", file.size);
+
+      const response = await axios.post(
+        "https://api.cloudinary.com/v1_1/ddlrkl4jy/image/upload", // Use image/upload for images
+        formData,
+        {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(progress);
+            console.log(`Upload progress: ${progress}%`);
+          },
+        }
+      );
+
+      console.log("Cloudinary response:", response.data);
+      return response.data.secure_url;
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      console.error("Error response:", error.response?.data);
+      
+      let errorMessage = "Upload failed";
+      if (error.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
       }
-    );
-
-    return response.data.secure_url;
-  } catch (error) {
-    console.error("Cloudinary upload error:", error);
-    toast.error(
-      `Upload failed: ${error.response?.data?.error?.message || "Unknown error"}`
-    );
-    throw error;
-  } finally {
-    setUploading(false);
-    setUploadProgress(0);
-  }
-};
-
+      
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
+  };
 
   const handleFileSelect = (e) => {
     const file = e.target.files[0];
     if (file) {
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file");
+      console.log("Selected file:", file);
+      
+      // Check file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error("Please select a valid image file (JPEG, PNG, GIF, or WebP)");
+        e.target.value = ''; // Clear the input
         return;
       }
+      
+      // Check file size (2MB limit)
       if (file.size > 2 * 1024 * 1024) {
         toast.error("File size must be less than 2MB");
+        e.target.value = ''; // Clear the input
         return;
       }
+      
       setImage(file);
+      toast.success(`Selected: ${file.name}`);
     }
   };
 
@@ -399,7 +125,11 @@ const Profile = () => {
     }
 
     try {
+      console.log("Starting upload process...");
       const imageUrl = await uploadToCloudinary(image);
+      
+      console.log("Image uploaded successfully:", imageUrl);
+      console.log("Current profile:", profile);
 
       const currentUser = auth.currentUser;
       if (!currentUser) {
@@ -408,15 +138,21 @@ const Profile = () => {
       }
 
       const token = await getIdToken(currentUser);
+      console.log("Updating profile with new avatar...");
+      
+      const updateData = {
+        name: `${profile.firstname} ${profile.lastname}`.trim() || "User",
+        email: profile.email,
+        phone: profile.phone || "",
+        company: profile.company || "",
+        avatar: imageUrl,
+      };
+      
+      console.log("Update data:", updateData);
+
       const res = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}profile`,
-        {
-          name: `${profile.firstname} ${profile.lastname}`,
-          email: profile.email,
-          phone: profile.phone,
-          company: profile.company,
-          avatar: imageUrl,
-        },
+        updateData,
         {
           headers: {
             "Content-Type": "application/json",
@@ -425,24 +161,44 @@ const Profile = () => {
         }
       );
 
+      console.log("Profile update response:", res.data);
+
       if (res.data && res.data.user) {
-        const [firstname, ...rest] = res.data.user.name?.split(" ") || ["", ""];
-        const lastname = rest.join(" ");
-        setProfile({
-          firstname,
-          lastname,
-          email: res.data.user.email,
-          phone: res.data.user.phone,
-          company: res.data.user.company,
-          avatar: res.data.user.avatar || "",
-        });
+        updateProfileState(res.data.user);
         setImage(null);
+        // Clear the file input
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = '';
         toast.success("Avatar updated successfully!");
       }
     } catch (error) {
       console.error("Upload error:", error);
-      toast.error("Failed to upload avatar. Please try again.");
+      console.error("Error details:", error.response?.data);
+      
+      let errorMessage = "Failed to upload avatar";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     }
+  };
+
+  const updateProfileState = (userData) => {
+    const [firstname, ...rest] = userData.name?.split(" ") || ["", ""];
+    const lastname = rest.join(" ");
+    const newProfile = {
+      firstname,
+      lastname,
+      email: userData.email || "",
+      phone: userData.phone || "",
+      company: userData.company || "",
+      avatar: userData.avatar || "",
+    };
+    setProfile(newProfile);
+    setEditProfile(newProfile);
   };
 
   useEffect(() => {
@@ -464,22 +220,21 @@ const Profile = () => {
             },
           }
         );
+        
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
         const data = await res.json();
         if (data && data.user) {
-          setProfile({
-            firstname: data.user.name?.split(" ")[0] || "",
-            lastname: data.user.name?.split(" ").slice(1).join(" ") || "",
-            email: data.user.email || "",
-            phone: data.user.phone || "",
-            company: data.user.company || "",
-            avatar: data.user.avatar || "",
-          });
+          updateProfileState(data.user);
         }
       } catch (err) {
         console.error("Fetch profile error:", err);
         toast.error("Failed to load profile.");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchProfile();
@@ -510,11 +265,11 @@ const Profile = () => {
       const res = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}profile`,
         {
-          name: `${editProfile.firstname} ${editProfile.lastname}`,
+          name: `${editProfile.firstname} ${editProfile.lastname}`.trim(),
           email: editProfile.email,
           phone: editProfile.phone,
           company: editProfile.company,
-          avatar: profile.avatar,
+          avatar: profile.avatar, // Keep existing avatar
         },
         {
           headers: {
@@ -525,26 +280,25 @@ const Profile = () => {
       );
 
       if (res.data && res.data.user) {
-        const [firstname, ...rest] = res.data.user.name?.split(" ") || ["", ""];
-        const lastname = rest.join(" ");
-        setProfile({
-          firstname,
-          lastname,
-          email: res.data.user.email,
-          phone: res.data.user.phone,
-          company: res.data.user.company,
-          avatar: res.data.user.avatar || "",
-        });
+        updateProfileState(res.data.user);
         setEditOpen(false);
         toast.success("Profile updated successfully!");
       }
     } catch (err) {
       console.error("Update profile error:", err);
-      toast.error("Failed to update profile.");
+      toast.error(
+        err.response?.data?.error || "Failed to update profile."
+      );
     }
   };
 
-  if (loading) return <div>Loading...</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -617,38 +371,38 @@ const Profile = () => {
             <div>
               <Label>First Name</Label>
               <div className="border rounded px-3 py-2 bg-slate-50">
-                {profile.firstname}
+                {profile.firstname || "Not set"}
               </div>
             </div>
             <div>
               <Label>Last Name</Label>
               <div className="border rounded px-3 py-2 bg-slate-50">
-                {profile.lastname}
+                {profile.lastname || "Not set"}
               </div>
             </div>
             <div>
               <Label>Email</Label>
               <div className="border rounded px-3 py-2 bg-slate-50">
-                {profile.email}
+                {profile.email || "Not set"}
               </div>
             </div>
             <div>
               <Label>Phone</Label>
               <div className="border rounded px-3 py-2 bg-slate-50">
-                {profile.phone}
+                {profile.phone || "Not set"}
               </div>
             </div>
             <div>
               <Label>Company</Label>
               <div className="border rounded px-3 py-2 bg-slate-50">
-                {profile.company}
+                {profile.company || "Not set"}
               </div>
             </div>
           </div>
 
           <Button className="mt-4" variant="outline" onClick={handleEdit}>
             <Pencil className="h-4 w-4 mr-2" />
-            Edit
+            Edit Profile
           </Button>
         </CardContent>
       </Card>
@@ -668,6 +422,7 @@ const Profile = () => {
                   name="firstname"
                   value={editProfile.firstname}
                   onChange={handleEditChange}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -688,6 +443,7 @@ const Profile = () => {
                 type="email"
                 value={editProfile.email}
                 onChange={handleEditChange}
+                required
               />
             </div>
             <div className="space-y-2">
