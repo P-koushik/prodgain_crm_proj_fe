@@ -44,7 +44,7 @@ const getContactById = async (contactId) => {
   const token = await getIdToken(currentUser);
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/contacts/${contactId}`,
     {
       method: "GET",
       headers: {
@@ -76,7 +76,7 @@ const updateContactById = async ({ contactId, formData }) => {
   const token = await getIdToken(currentUser);
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/contacts/${contactId}`,
     {
       method: "PUT",
       headers: {
@@ -106,7 +106,7 @@ const deleteContactById = async (contactId) => {
   const token = await getIdToken(currentUser);
 
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/contacts/${contactId}`,
     {
       method: "DELETE",
       headers: {
@@ -135,7 +135,7 @@ const getContactActivities = async (contactId) => {
   const token = await getIdToken(currentUser);
 
   const data = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}activity/${contactId}`,
+    `${process.env.NEXT_PUBLIC_API_URL}/api/activity/${contactId}`,
     {
       method: "GET",
       headers: {

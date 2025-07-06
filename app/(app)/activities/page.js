@@ -83,7 +83,9 @@ const Activities = () => {
             }),
         });
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}activity?${params.toString()}`,
+          `${
+            process.env.NEXT_PUBLIC_API_URL
+          }/api/activity?${params.toString()}`,
           {
             method: "GET",
             headers: {

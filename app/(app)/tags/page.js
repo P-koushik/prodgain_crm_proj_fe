@@ -56,15 +56,18 @@ const Tags = () => {
       return;
     }
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}tags/bulk`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ tags: tagsToAdd }),
-      credentials: "include",
-    });
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/tags/bulk`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ tags: tagsToAdd }),
+        credentials: "include",
+      }
+    );
 
     const data = await res.json();
     if (data.success) {
@@ -83,7 +86,7 @@ const Tags = () => {
     if (!editingTag) return;
 
     const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}tags/${editingTag._id}`,
+      `${process.env.NEXT_PUBLIC_API_URL}/api/tags/${editingTag._id}`,
       {
         method: "PUT",
         headers: {
@@ -118,8 +121,8 @@ const Tags = () => {
       const token = await getIdToken(currentUser);
 
       const url = force
-        ? `${process.env.NEXT_PUBLIC_API_URL}tags/${tagId}?force=true`
-        : `${process.env.NEXT_PUBLIC_API_URL}tags/${tagId}`;
+        ? `${process.env.NEXT_PUBLIC_API_URL}/api/tags/${tagId}?force=true`
+        : `${process.env.NEXT_PUBLIC_API_URL}/api/tags/${tagId}`;
 
       const res = await fetch(url, {
         method: "DELETE",

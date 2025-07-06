@@ -11,11 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Camera, Pencil } from "lucide-react";
 import axios from "axios";
 import {
@@ -63,7 +59,9 @@ const Profile = () => {
         formData,
         {
           onUploadProgress: (progressEvent) => {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
             setUploadProgress(progress);
             console.log(`Upload progress: ${progress}%`);
           },
@@ -75,7 +73,7 @@ const Profile = () => {
     } catch (error) {
       console.error("Cloudinary upload error:", error);
       console.error("Error response:", error.response?.data);
-      
+
       let errorMessage = "Upload failed";
       if (error.response?.data?.error?.message) {
         errorMessage = error.response.data.error.message;
@@ -84,7 +82,7 @@ const Profile = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -97,22 +95,30 @@ const Profile = () => {
     const file = e.target.files[0];
     if (file) {
       console.log("Selected file:", file);
-      
+
       // Check file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
       if (!allowedTypes.includes(file.type)) {
-        toast.error("Please select a valid image file (JPEG, PNG, GIF, or WebP)");
-        e.target.value = ''; // Clear the input
+        toast.error(
+          "Please select a valid image file (JPEG, PNG, GIF, or WebP)"
+        );
+        e.target.value = ""; // Clear the input
         return;
       }
-      
+
       // Check file size (2MB limit)
       if (file.size > 2 * 1024 * 1024) {
         toast.error("File size must be less than 2MB");
-        e.target.value = ''; // Clear the input
+        e.target.value = ""; // Clear the input
         return;
       }
-      
+
       setImage(file);
       toast.success(`Selected: ${file.name}`);
     }
@@ -127,7 +133,7 @@ const Profile = () => {
     try {
       console.log("Starting upload process...");
       const imageUrl = await uploadToCloudinary(image);
-      
+
       console.log("Image uploaded successfully:", imageUrl);
       console.log("Current profile:", profile);
 
@@ -139,7 +145,7 @@ const Profile = () => {
 
       const token = await getIdToken(currentUser);
       console.log("Updating profile with new avatar...");
-      
+
       const updateData = {
         name: `${profile.firstname} ${profile.lastname}`.trim() || "User",
         email: profile.email,
@@ -147,11 +153,11 @@ const Profile = () => {
         company: profile.company || "",
         avatar: imageUrl,
       };
-      
+
       console.log("Update data:", updateData);
 
       const res = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}profile`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/profile`,
         updateData,
         {
           headers: {
@@ -168,20 +174,20 @@ const Profile = () => {
         setImage(null);
         // Clear the file input
         const fileInput = document.querySelector('input[type="file"]');
-        if (fileInput) fileInput.value = '';
+        if (fileInput) fileInput.value = "";
         toast.success("Avatar updated successfully!");
       }
     } catch (error) {
       console.error("Upload error:", error);
       console.error("Error details:", error.response?.data);
-      
+
       let errorMessage = "Failed to upload avatar";
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       toast.error(errorMessage);
     }
   };
@@ -211,7 +217,7 @@ const Profile = () => {
         }
         const token = await getIdToken(currentUser);
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}profile`,
+          `${process.env.NEXT_PUBLIC_API_URL}/api/profile`,
           {
             method: "GET",
             headers: {
@@ -220,11 +226,11 @@ const Profile = () => {
             },
           }
         );
-        
+
         if (!res.ok) {
           throw new Error(`HTTP error! status: ${res.status}`);
         }
-        
+
         const data = await res.json();
         if (data && data.user) {
           updateProfileState(data.user);
@@ -263,7 +269,7 @@ const Profile = () => {
       }
       const token = await getIdToken(currentUser);
       const res = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}profile`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/profile`,
         {
           name: `${editProfile.firstname} ${editProfile.lastname}`.trim(),
           email: editProfile.email,
@@ -286,9 +292,7 @@ const Profile = () => {
       }
     } catch (err) {
       console.error("Update profile error:", err);
-      toast.error(
-        err.response?.data?.error || "Failed to update profile."
-      );
+      toast.error(err.response?.data?.error || "Failed to update profile.");
     }
   };
 
@@ -306,9 +310,7 @@ const Profile = () => {
         <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
           Profile Settings
         </h1>
-        <p className="text-slate-600 mt-2">
-          Manage your account information
-        </p>
+        <p className="text-slate-600 mt-2">Manage your account information</p>
       </div>
 
       <Card>
@@ -350,16 +352,12 @@ const Profile = () => {
                     disabled={uploading}
                     className="bg-gradient-to-r from-blue-600 to-purple-600"
                   >
-                    {uploading
-                      ? `Uploading... ${uploadProgress}%`
-                      : "Upload"}
+                    {uploading ? `Uploading... ${uploadProgress}%` : "Upload"}
                   </Button>
                 )}
               </div>
               {image && (
-                <p className="text-sm text-green-600">
-                  Selected: {image.name}
-                </p>
+                <p className="text-sm text-green-600">Selected: {image.name}</p>
               )}
               <p className="text-sm text-slate-500">
                 JPG, PNG or GIF. Max size 2MB.

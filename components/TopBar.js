@@ -42,9 +42,9 @@ const TopBar = () => {
         // Search data via API
         try {
           const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}search?q=${encodeURIComponent(
-              query
-            )}`,
+            `${
+              process.env.NEXT_PUBLIC_API_URL
+            }/api/search?q=${encodeURIComponent(query)}`,
             {
               method: "GET",
               headers: {
@@ -62,7 +62,7 @@ const TopBar = () => {
         }
       }
       fetchResults();
-    }, 500); 
+    }, 500);
 
     return () => clearTimeout(handler);
   }, [query]);

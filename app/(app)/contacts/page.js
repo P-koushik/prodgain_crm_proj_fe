@@ -1,17 +1,47 @@
-"use client"
+"use client";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { UserPlus, Search, Filter, Upload, Edit, Trash2, MoreHorizontal, Grid3X3, List } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  UserPlus,
+  Search,
+  Filter,
+  Upload,
+  Edit,
+  Trash2,
+  MoreHorizontal,
+  Grid3X3,
+  List,
+} from "lucide-react";
 import { getAllContacts } from "@/lib/services/contactService.js";
 import { getAlltags } from "@/lib/services/tagService.js";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -33,7 +63,14 @@ const Contacts = () => {
   const [csvFile, setCsvFile] = useState(null);
   const [csvErrors, setCsvErrors] = useState([]);
   const [viewMode, setViewMode] = useState("list"); // "list" or "grid"
-  const [contactForm, setContactForm] = useState({ name: "", email: "", phone: "", company: "", tags: [], note: "", });
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    company: "",
+    tags: [],
+    note: "",
+  });
   const [pagenumber, setPagenumber] = useState(1);
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -54,13 +91,14 @@ const Contacts = () => {
 
   const { data: contactdata } = useQuery({
     queryKey: ["contacts", pagenumber, debouncedSearch],
-    queryFn: () => getAllContacts(debouncedSearch, pagenumber, itemsPerPage, ''),
+    queryFn: () =>
+      getAllContacts(debouncedSearch, pagenumber, itemsPerPage, ""),
   });
 
   const { data: tagdata } = useQuery({
     queryKey: ["tags"],
-    queryFn: () => getAlltags('', null, null, ''),
-    enabled: true
+    queryFn: () => getAlltags("", null, null, ""),
+    enabled: true,
   });
 
   const contacts = contactdata?.contacts || [];
@@ -71,7 +109,7 @@ const Contacts = () => {
 
   // Build a tag color map: { tagName: color }
   const tagColorMap = {};
-  starttagdata.forEach(tag => {
+  starttagdata.forEach((tag) => {
     tagColorMap[tag.name] = tag.color;
   });
 
@@ -81,7 +119,7 @@ const Contacts = () => {
 
   const handleSelectAll = (checked) => {
     if (checked) {
-      setSelectedContacts(contacts.map(c => c._id));
+      setSelectedContacts(contacts.map((c) => c._id));
     } else {
       setSelectedContacts([]);
     }
@@ -89,9 +127,9 @@ const Contacts = () => {
 
   const handleSelectContact = (contactId, checked) => {
     if (checked) {
-      setSelectedContacts(prev => [...prev, contactId]);
+      setSelectedContacts((prev) => [...prev, contactId]);
     } else {
-      setSelectedContacts(prev => prev.filter(_id => _id !== contactId));
+      setSelectedContacts((prev) => prev.filter((_id) => _id !== contactId));
     }
   };
 
@@ -128,8 +166,8 @@ const Contacts = () => {
       tags: csvRow.tags
         ? csvRow.tags.split(",").map((t) => t.trim())
         : csvRow.Tags
-          ? csvRow.Tags.split(",").map((t) => t.trim())
-          : [],
+        ? csvRow.Tags.split(",").map((t) => t.trim())
+        : [],
       note: csvRow.note || csvRow.Note || "",
     });
     setIsAddModalOpen(true);
@@ -141,11 +179,11 @@ const Contacts = () => {
     if (!currentUser) return toast.error("You must be logged in");
     const token = await getIdToken(currentUser);
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/contacts`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ...contactForm, user: currentUser.uid }),
     });
@@ -174,11 +212,11 @@ const Contacts = () => {
       toast.error("Please select at least one contact to delete.");
       return;
     }
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts`, {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/contacts`, {
       method: "DELETE",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ ids: selectedContacts }),
       credentials: "include",
@@ -197,13 +235,16 @@ const Contacts = () => {
   const handledeleteone = async (contactId) => {
     const currentUser = auth.currentUser;
     const token = await getIdToken(currentUser);
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts/${contactId}`, {
-      method: "DELETE",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`,
-      },
-    });
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/contacts/${contactId}`,
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
 
     const data = await res.json();
     if (data.success) {
@@ -262,7 +303,9 @@ const Contacts = () => {
         setCsvContacts(validRows);
       },
       error: function (err) {
-        setCsvErrors(["Failed to parse CSV file. Please check your file format."]);
+        setCsvErrors([
+          "Failed to parse CSV file. Please check your file format.",
+        ]);
         setCsvContacts([]);
       },
     });
@@ -279,14 +322,17 @@ const Contacts = () => {
     try {
       const currentUser = auth.currentUser;
       const token = await getIdToken(currentUser);
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}contacts/import`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`,
-        },
-        body: JSON.stringify({ contacts: csvContacts }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/contacts/import`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ contacts: csvContacts }),
+        }
+      );
       const data = await res.json();
       if (data.success) {
         toast.success(data.message || "Contacts imported successfully.");
@@ -296,7 +342,10 @@ const Contacts = () => {
         setCsvErrors([]);
         queryClient.invalidateQueries(["contacts"]);
       } else {
-        toast.error(data.message || "Some contacts may have been skipped due to duplicates.");
+        toast.error(
+          data.message ||
+            "Some contacts may have been skipped due to duplicates."
+        );
       }
     } catch (err) {
       toast.error("Failed to import contacts. Please try again.");
@@ -321,20 +370,20 @@ const Contacts = () => {
 
   const initials = (contact) => {
     // console.log("Contact:", contact.split(' '));
-    return contact.split(' ').map(contact => {
+    return contact.split(" ").map((contact) => {
       const nameParts = contact;
-      return nameParts.length > 1
-        ? `${nameParts[0][0]}`
-        : nameParts[0][0];
+      return nameParts.length > 1 ? `${nameParts[0][0]}` : nameParts[0][0];
     });
-  }
+  };
 
   const GridView = () => (
     <div className="space-y-4">
       {/* Select All for Grid View */}
       <div className="flex items-center space-x-2 pb-2 border-b">
         <Checkbox
-          checked={contacts.length > 0 && selectedContacts.length === contacts.length}
+          checked={
+            contacts.length > 0 && selectedContacts.length === contacts.length
+          }
           onCheckedChange={handleSelectAll}
         />
         <span className="text-sm text-slate-600">
@@ -347,9 +396,17 @@ const Contacts = () => {
         {contacts.map((contact) => (
           <Card
             key={contact._id}
-            className={`hover:shadow-lg transition-shadow cursor-pointer ${selectedContacts.includes(contact._id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-              }`}
-            onClick={() => handleSelectContact(contact._id, !selectedContacts.includes(contact._id))}
+            className={`hover:shadow-lg transition-shadow cursor-pointer ${
+              selectedContacts.includes(contact._id)
+                ? "ring-2 ring-blue-500 bg-blue-50"
+                : ""
+            }`}
+            onClick={() =>
+              handleSelectContact(
+                contact._id,
+                !selectedContacts.includes(contact._id)
+              )
+            }
           >
             <CardContent className="p-4">
               <div className="flex items-start justify-between mb-3">
@@ -357,7 +414,7 @@ const Contacts = () => {
                   <Avatar className="h-10 w-10">
                     <AvatarImage src="/placeholder.svg" />
                     <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white text-sm">
-                      {contact.avatar  || initials(contact.name)} 
+                      {contact.avatar || initials(contact.name)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -375,7 +432,9 @@ const Contacts = () => {
                 </div>
                 <Checkbox
                   checked={selectedContacts.includes(contact._id)}
-                  onCheckedChange={(checked) => handleSelectContact(contact._id, checked)}
+                  onCheckedChange={(checked) =>
+                    handleSelectContact(contact._id, checked)
+                  }
                   onClick={(e) => e.stopPropagation()} // Prevent double-trigger
                 />
               </div>
@@ -400,7 +459,7 @@ const Contacts = () => {
                       className="text-xs"
                       style={{
                         backgroundColor: tagColorMap[tag] || "#e5e7eb",
-                        color: "#ffffff"
+                        color: "#ffffff",
                       }}
                     >
                       {tag}
@@ -450,7 +509,10 @@ const Contacts = () => {
         <TableRow>
           <TableHead className="w-12">
             <Checkbox
-              checked={contacts.length > 0 && selectedContacts.length === contacts.length}
+              checked={
+                contacts.length > 0 &&
+                selectedContacts.length === contacts.length
+              }
               onCheckedChange={handleSelectAll}
             />
           </TableHead>
@@ -468,7 +530,9 @@ const Contacts = () => {
             <TableCell>
               <Checkbox
                 checked={selectedContacts.includes(contact._id)}
-                onCheckedChange={(checked) => handleSelectContact(contact._id, checked)}
+                onCheckedChange={(checked) =>
+                  handleSelectContact(contact._id, checked)
+                }
               />
             </TableCell>
             <TableCell>
@@ -480,7 +544,10 @@ const Contacts = () => {
                   </AvatarFallback>
                 </Avatar>
                 <span className="font-medium">
-                  <Link href={`/contacts/${contact._id}`} className="hover:underline text-blue-700">
+                  <Link
+                    href={`/contacts/${contact._id}`}
+                    className="hover:underline text-blue-700"
+                  >
                     {contact.name}
                   </Link>
                 </span>
@@ -497,7 +564,7 @@ const Contacts = () => {
                     className="text-xs"
                     style={{
                       backgroundColor: tagColorMap[tag] || "#e5e7eb",
-                      color: "#ffffff"
+                      color: "#ffffff",
                     }}
                   >
                     {tag}
@@ -505,15 +572,26 @@ const Contacts = () => {
                 ))}
               </div>
             </TableCell>
-            <TableCell className="text-slate-500 text-sm">{contact.lastInteraction}</TableCell>
+            <TableCell className="text-slate-500 text-sm">
+              {contact.lastInteraction}
+            </TableCell>
             <TableCell>
               <div className="flex space-x-1">
-                <Button variant="ghost" size="sm" onClick={() => {
-                  router.push(`/contacts/${contact._id}?isedit=true`)
-                }}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    router.push(`/contacts/${contact._id}?isedit=true`);
+                  }}
+                >
                   <Edit className="h-4 w-4" />
                 </Button>
-                <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => handledeleteone(contact._id)}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                  onClick={() => handledeleteone(contact._id)}
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </div>
@@ -531,7 +609,9 @@ const Contacts = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
             Contacts
           </h1>
-          <p className="text-slate-600 mt-2">Manage your customer relationships</p>
+          <p className="text-slate-600 mt-2">
+            Manage your customer relationships
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -552,19 +632,48 @@ const Contacts = () => {
               <form className="space-y-4" onSubmit={handlesubmit}>
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
-                  <Input id="name" name="name" placeholder="Enter full name" value={contactForm.name} onChange={handleChange} required />
+                  <Input
+                    id="name"
+                    name="name"
+                    placeholder="Enter full name"
+                    value={contactForm.name}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email *</Label>
-                  <Input id="email" name="email" type="email" placeholder="Enter email address" value={contactForm.email} onChange={handleChange} required />
+                  <Input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="Enter email address"
+                    value={contactForm.email}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" name="phone" placeholder="Enter phone number" value={contactForm.phone} onChange={handleChange} required />
+                  <Input
+                    id="phone"
+                    name="phone"
+                    placeholder="Enter phone number"
+                    value={contactForm.phone}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company">Company</Label>
-                  <Input id="company" name="company" placeholder="Enter company name" value={contactForm.company} onChange={handleChange} required />
+                  <Input
+                    id="company"
+                    name="company"
+                    placeholder="Enter company name"
+                    value={contactForm.company}
+                    onChange={handleChange}
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tags">Tags</Label>
@@ -574,13 +683,21 @@ const Contacts = () => {
                     </SelectTrigger>
                     <SelectContent>
                       {starttagdata.map((tag) => (
-                        <div key={tag._id} className="flex items-center space-x-2 px-2 py-1">
+                        <div
+                          key={tag._id}
+                          className="flex items-center space-x-2 px-2 py-1"
+                        >
                           <Checkbox
                             id={`tag-${tag._id}`}
                             checked={contactForm.tags.includes(tag.name)}
-                            onCheckedChange={(checked) => handleTagCheckbox(tag.name, checked)}
+                            onCheckedChange={(checked) =>
+                              handleTagCheckbox(tag.name, checked)
+                            }
                           />
-                          <label htmlFor={`tag-${tag._id}`} className="text-sm cursor-pointer">
+                          <label
+                            htmlFor={`tag-${tag._id}`}
+                            className="text-sm cursor-pointer"
+                          >
                             {tag.name}
                           </label>
                         </div>
@@ -597,13 +714,25 @@ const Contacts = () => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="note">Notes</Label>
-                  <Textarea id="note" name="note" placeholder="Add any notes about this contact" value={contactForm.note} onChange={handleChange} />
+                  <Textarea
+                    id="note"
+                    name="note"
+                    placeholder="Add any notes about this contact"
+                    value={contactForm.note}
+                    onChange={handleChange}
+                  />
                 </div>
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsAddModalOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button className="bg-gradient-to-r from-blue-600 to-purple-600" type="submit">
+                  <Button
+                    className="bg-gradient-to-r from-blue-600 to-purple-600"
+                    type="submit"
+                  >
                     Save Contact
                   </Button>
                 </div>
@@ -611,7 +740,11 @@ const Contacts = () => {
             </DialogContent>
           </Dialog>
 
-          <Dialog open={csvModalOpen} onOpenChange={setCsvModalOpen} className="w-auto">
+          <Dialog
+            open={csvModalOpen}
+            onOpenChange={setCsvModalOpen}
+            className="w-auto"
+          >
             <DialogTrigger asChild>
               <Button variant="outline">
                 <Upload className="h-4 w-4 mr-2" />
@@ -622,25 +755,36 @@ const Contacts = () => {
               <DialogHeader>
                 <DialogTitle>Import Contacts from CSV</DialogTitle>
                 <DialogDescription>
-                  Drag and drop a CSV file here, or click to select. Columns: name, email, phone, company, tags, note.
+                  Drag and drop a CSV file here, or click to select. Columns:
+                  name, email, phone, company, tags, note.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 {/* Drag-and-drop area */}
                 <div
                   {...getRootProps()}
-                  className={`border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors ${isDragActive ? "border-blue-500 bg-blue-50" : "border-slate-300 bg-slate-50"
-                    }`}
+                  className={`border-2 border-dashed rounded p-6 text-center cursor-pointer transition-colors ${
+                    isDragActive
+                      ? "border-blue-500 bg-blue-50"
+                      : "border-slate-300 bg-slate-50"
+                  }`}
                 >
                   <input {...getInputProps()} />
                   {isDragActive ? (
                     <p className="text-blue-700">Drop the CSV file here ...</p>
                   ) : (
                     <p>
-                      Drag & drop a CSV file here, or <span className="underline text-blue-700">click to select</span>
+                      Drag & drop a CSV file here, or{" "}
+                      <span className="underline text-blue-700">
+                        click to select
+                      </span>
                     </p>
                   )}
-                  {csvFile && <p className="mt-2 text-xs text-slate-500">Selected file: {csvFile.name}</p>}
+                  {csvFile && (
+                    <p className="mt-2 text-xs text-slate-500">
+                      Selected file: {csvFile.name}
+                    </p>
+                  )}
                 </div>
 
                 {/* Error display */}
@@ -680,7 +824,7 @@ const Contacts = () => {
                                 whiteSpace: "nowrap",
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
-                                cursor: "pointer"
+                                cursor: "pointer",
                               }}
                               title={c.note}
                             >
@@ -694,7 +838,10 @@ const Contacts = () => {
                 )}
 
                 <div className="flex justify-end space-x-2">
-                  <Button variant="outline" onClick={() => setCsvModalOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCsvModalOpen(false)}
+                  >
                     Cancel
                   </Button>
                   <Button
@@ -764,8 +911,15 @@ const Contacts = () => {
                 {selectedContacts.length} contact(s) selected
               </span>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm">Tag Selected</Button>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700" onClick={handledelete} >
+                <Button variant="outline" size="sm">
+                  Tag Selected
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700"
+                  onClick={handledelete}
+                >
                   Delete Selected
                 </Button>
               </div>
@@ -790,7 +944,7 @@ const Contacts = () => {
           variant="outline"
           size="sm"
           disabled={!hasPrevPage}
-          onClick={() => setPagenumber(prev => Math.max(1, prev - 1))}
+          onClick={() => setPagenumber((prev) => Math.max(1, prev - 1))}
         >
           Prev
         </Button>
@@ -800,7 +954,9 @@ const Contacts = () => {
             key={pageNum}
             size="sm"
             variant={pagenumber === pageNum ? "default" : "outline"}
-            className={pagenumber === pageNum ? "font-bold bg-blue-600 text-white" : ""}
+            className={
+              pagenumber === pageNum ? "font-bold bg-blue-600 text-white" : ""
+            }
             onClick={() => setPagenumber(pageNum)}
           >
             {pageNum}
@@ -811,7 +967,7 @@ const Contacts = () => {
           variant="outline"
           size="sm"
           disabled={!hasNextPage}
-          onClick={() => setPagenumber(prev => prev + 1)}
+          onClick={() => setPagenumber((prev) => prev + 1)}
         >
           Next
         </Button>
