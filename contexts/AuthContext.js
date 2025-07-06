@@ -13,7 +13,7 @@ import {
 import { auth, googleProvider } from "@/firebase";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
-import dotenv from "dotenv";  
+import dotenv from "dotenv";
 dotenv.config();
 
 // Use env var or fallback
@@ -25,7 +25,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const router = useRouter()
+  const router = useRouter();
 
   // Sync user state
   useEffect(() => {
@@ -38,7 +38,10 @@ export const AuthProvider = ({ children }) => {
           setTokenCookie(token);
           await syncUserToBackend(firebaseUser, token);
         } catch (error) {
-          console.error("Error syncing user onAuthStateChanged:", error.message);
+          console.error(
+            "Error syncing user onAuthStateChanged:",
+            error.message
+          );
         }
       } else {
         removeTokenCookie();
@@ -51,7 +54,7 @@ export const AuthProvider = ({ children }) => {
   // Sync user to backend
   const syncUserToBackend = async (firebaseUser, token) => {
     try {
-      await fetch(`${BACKEND_URL}/auth/register`, {
+      await fetch(`${BACKEND_URL}/api/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -78,7 +81,11 @@ export const AuthProvider = ({ children }) => {
 
   // Register
   const register = async (email, password, name) => {
-    const userCred = await createUserWithEmailAndPassword(auth, email, password);
+    const userCred = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     await updateProfile(userCred.user, { name });
     const token = await getIdToken(userCred.user);
     setTokenCookie(token);
@@ -97,9 +104,9 @@ export const AuthProvider = ({ children }) => {
   const loginWithGoogle = async () => {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
-    console.log(user)
+    console.log(user);
     if (user.email) {
-      router.push("/dashboard")
+      router.push("/dashboard");
     }
     const token = await getIdToken(user);
     setTokenCookie(token);
