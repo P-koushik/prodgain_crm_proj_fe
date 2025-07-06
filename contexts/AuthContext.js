@@ -17,7 +17,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 // Use env var or fallback
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 const AuthContext = createContext();
 export const useAuth = () => useContext(AuthContext);
@@ -51,7 +51,7 @@ export const AuthProvider = ({ children }) => {
   // Sync user to backend
   const syncUserToBackend = async (firebaseUser, token) => {
     try {
-      await fetch(`${BACKEND_URL}/api/auth/register`, {
+      await fetch(`${BACKEND_URL}/auth/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   const removeTokenCookie = () => {
-    Cookies.remove("token", { path: "/" });
+    Cookies.remove("token", { path: "/dashboard" });
   };
 
   // Register
