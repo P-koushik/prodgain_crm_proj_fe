@@ -1,45 +1,13 @@
-"use client";
+"use client"
 
 import { useState, useEffect } from "react";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, UserPlus, Activity, Tags } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { useQuery } from "@tanstack/react-query";
 import { getcountofcontacts } from "@/lib/services/contactService.js";
 import { getAlltags } from "@/lib/services/tagService.js";
 import { getActivityLogs } from "@/lib/services/activityService.js";
-
-const PIE_COLORS = [
-  "#3b82f6", // blue
-  "#f59e42", // orange
-  "#10b981", // green
-  "#f43f5e", // red
-  "#a78bfa", // purple
-  "#fbbf24", // yellow
-  "#6366f1", // indigo
-  "#14b8a6", // teal
-  "#eab308", // gold
-  "#f472b6", // pink
-];
 
 const Dashboard = () => {
   const { data: contactData, isLoading: contactsLoading } = useQuery({
@@ -51,7 +19,7 @@ const Dashboard = () => {
 
   const { data: tagData, isLoading: tagsLoading } = useQuery({
     queryKey: ["tags"],
-    queryFn: () => getAlltags("", null, null, ""),
+    queryFn: () => getAlltags('', null, null, ''),
   });
 
   const { data: activityData, isLoading: activitiesLoading } = useQuery({
@@ -65,30 +33,46 @@ const Dashboard = () => {
   const countbycompany = contactData?.data.contactsByCompany || [];
   const activities = activityData || [];
 
+  // Enhanced color palette for pie chart
+  const pieChartColors = [
+    "#3b82f6", // Blue
+    "#10b981", // Emerald
+    "#8b5cf6", // Purple
+    "#f59e0b", // Amber
+    "#ef4444", // Red
+    "#06b6d4", // Cyan
+    "#84cc16", // Lime
+    "#f97316", // Orange
+    "#ec4899", // Pink
+    "#6366f1", // Indigo
+    "#14b8a6", // Teal
+    "#a855f7", // Violet
+  ];
+
   const totalContacts = contacts.length;
   const totalTags = tags.length;
   const totalActivities = contactData?.data.activities || 0;
 
   const oneWeekAgo = new Date();
   oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-  const newThisWeek = contacts.filter(
-    (contact) => new Date(contact.createdAt) >= oneWeekAgo
+  const newThisWeek = contacts.filter(contact =>
+    new Date(contact.createdAt) >= oneWeekAgo
   ).length;
 
-  // const companyCounts = countbycompany.reduce((acc, contact) => {
-  //   const company = contact.company || 'Unknown';
-  //   acc[company] = (acc[company] || 0) + 1;
-  //   return acc;
-  // }, {});
+  const companyCounts = countbycompany.reduce((acc, contact) => {
+    const company = contact.company || 'Unknown';
+    acc[company] = (acc[company] || 0) + 1;
+    return acc;
+  }, {});
 
-  // const contactsByCompany = Object.entries(companyCounts)
-  //   .sort(([, a], [, b]) => b - a)
-  //   .slice(0, 5)
-  //   .map(([name, contacts]) => ({ name, contacts }));
+  const contactsByCompany = Object.entries(companyCounts)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([name, contacts]) => ({ name, contacts }));
 
   // Process activities timeline (last 7 days)
   const activitiesByDay = {};
-  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Initialize all days with 0
   for (let i = 6; i >= 0; i--) {
@@ -99,53 +83,39 @@ const Dashboard = () => {
   }
 
   // Count activities by day
-  activities.forEach((activity) => {
+  activities.forEach(activity => {
     const activityDate = new Date(activity.timestamp);
     const dayName = dayNames[activityDate.getDay()];
-    const daysDiff = Math.floor(
-      (new Date() - activityDate) / (1000 * 60 * 60 * 24)
-    );
+    const daysDiff = Math.floor((new Date() - activityDate) / (1000 * 60 * 60 * 24));
 
     if (daysDiff <= 6) {
       activitiesByDay[dayName]++;
     }
   });
 
-  const activitiesTimeline = Object.entries(showDataAccordingToDay || {}).map(
-    ([date, activities]) => ({
-      date,
-      activities,
-    })
-  );
+  const activitiesTimeline = Object.entries(showDataAccordingToDay || {}).map(([date, activities]) => ({
+    date,
+    activities
+  }));
 
-  // Process tag distribution
+  // Process tag distribution with enhanced colors
   const tagCounts = {};
-  qd;
-  contacts.forEach((contact) => {
+  contacts.forEach(contact => {
     if (contact.tags && Array.isArray(contact.tags)) {
-      contact.tags.forEach((tag) => {
+      contact.tags.forEach(tag => {
         tagCounts[tag] = (tagCounts[tag] || 0) + 1;
       });
     }
   });
 
-  const totalTaggedContacts = Object.values(tagCounts).reduce(
-    (sum, count) => sum + count,
-    0
-  );
+  const totalTaggedContacts = Object.values(tagCounts).reduce((sum, count) => sum + count, 0);
 
   const tagDistribution = Object.entries(tagCounts)
-    .map(([name, count], idx) => {
-      const percentage =
-        totalTaggedContacts > 0
-          ? Math.round((count / totalTaggedContacts) * 100)
-          : 0;
-      return {
-        name,
-        value: percentage,
-        color: PIE_COLORS[idx % PIE_COLORS.length], // Assign color from palette
-        count,
-      };
+    .map(([name, count], index) => {
+      const percentage = totalTaggedContacts > 0 ? Math.round((count / totalTaggedContacts) * 100) : 0;
+      // Use enhanced color palette instead of tag color
+      const color = pieChartColors[index % pieChartColors.length];
+      return { name, value: percentage, color, count };
     })
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
@@ -155,16 +125,13 @@ const Dashboard = () => {
     const otherCount = Object.entries(tagCounts)
       .slice(5)
       .reduce((sum, [, count]) => sum + count, 0);
-    const otherPercentage =
-      totalTaggedContacts > 0
-        ? Math.round((otherCount / totalTaggedContacts) * 100)
-        : 0;
+    const otherPercentage = totalTaggedContacts > 0 ? Math.round((otherCount / totalTaggedContacts) * 100) : 0;
     if (otherPercentage > 0) {
       tagDistribution.push({
         name: "Other",
         value: otherPercentage,
-        color: "#6b7280",
-        count: otherCount,
+        color: "#6b7280", // Gray for "Other"
+        count: otherCount
       });
     }
   }
@@ -203,79 +170,59 @@ const Dashboard = () => {
         <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">
           Dashboard
         </h1>
-        <p className="text-slate-600 mt-2">
-          Welcome back! Here's what's happening with your CRM.
-        </p>
+        <p className="text-slate-600 mt-2">Welcome back! Here's what's happening with your CRM.</p>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-blue-700">
-              Total Contacts
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-blue-700">Total Contacts</CardTitle>
             <Users className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-900">
-              {totalContacts}
-            </div>
+            <div className="text-2xl font-bold text-blue-900">{totalContacts}</div>
             <p className="text-xs text-blue-600 mt-1">
-              {newThisWeek > 0
-                ? `+${newThisWeek} new this week`
-                : "No new contacts this week"}
+              {newThisWeek > 0 ? `+${newThisWeek} new this week` : 'No new contacts this week'}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-green-700">
-              New This Week
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-green-700">New This Week</CardTitle>
             <UserPlus className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-900">
-              {newThisWeek}
-            </div>
+            <div className="text-2xl font-bold text-green-900">{newThisWeek}</div>
             <p className="text-xs text-green-600 mt-1">
-              {newThisWeek > 0 ? "New contacts added" : "No new contacts"}
+              {newThisWeek > 0 ? 'New contacts added' : 'No new contacts'}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-purple-700">
-              Total Activities
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-purple-700">Total Activities</CardTitle>
             <Activity className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-purple-900">
-              {totalActivities}
-            </div>
+            <div className="text-2xl font-bold text-purple-900">{totalActivities}</div>
             <p className="text-xs text-purple-600 mt-1">
-              {totalActivities > 0 ? "Activities logged" : "No activities yet"}
+              {totalActivities > 0 ? 'Activities logged' : 'No activities yet'}
             </p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-orange-700">
-              Active Tags
-            </CardTitle>
+            <CardTitle className="text-sm font-medium text-orange-700">Active Tags</CardTitle>
             <Tags className="h-4 w-4 text-orange-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-900">
-              {totalTags}
-            </div>
+            <div className="text-2xl font-bold text-orange-900">{totalTags}</div>
             <p className="text-xs text-orange-600 mt-1">
-              {totalTags > 0 ? "Tags available" : "No tags created"}
+              {totalTags > 0 ? 'Tags available' : 'No tags created'}
             </p>
           </CardContent>
         </Card>
@@ -289,8 +236,9 @@ const Dashboard = () => {
             <CardTitle>Contacts by Company</CardTitle>
             <CardDescription>
               {contactsByCompany.length > 0
-                ? "Top companies with most contacts"
-                : "No company data available"}
+                ? 'Top companies with most contacts'
+                : 'No company data available'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -301,11 +249,7 @@ const Dashboard = () => {
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
-                  <Bar
-                    dataKey="contacts"
-                    fill="#3b82f6"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar dataKey="contacts" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -348,18 +292,15 @@ const Dashboard = () => {
           <CardTitle>Tag Distribution</CardTitle>
           <CardDescription>
             {tagDistribution.length > 0
-              ? "Breakdown of contact tags"
-              : "No tagged contacts available"}
+              ? 'Breakdown of contact tags'
+              : 'No tagged contacts available'
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
           {tagDistribution.length > 0 ? (
             <div className="flex flex-col lg:flex-row items-center">
-              <ResponsiveContainer
-                width="100%"
-                height={300}
-                className="lg:w-1/2"
-              >
+              <ResponsiveContainer width="100%" height={300} className="lg:w-1/2">
                 <PieChart>
                   <Pie
                     data={tagDistribution}
@@ -374,14 +315,17 @@ const Dashboard = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    formatter={(value, name) => [`${value}%`, name]}
+                    labelFormatter={(label) => `Tag: ${label}`}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="lg:w-1/2 space-y-4">
                 {tagDistribution.map((tag, index) => (
                   <div key={index} className="flex items-center space-x-3">
                     <div
-                      className="w-4 h-4 rounded-full"
+                      className="w-4 h-4 rounded-full shadow-sm"
                       style={{ backgroundColor: tag.color }}
                     ></div>
                     <span className="text-sm font-medium">{tag.name}</span>
@@ -396,7 +340,7 @@ const Dashboard = () => {
             <div className="flex items-center justify-center h-[300px] text-slate-500">
               No tagged contacts available
             </div>
-          )}
+            )}
         </CardContent>
       </Card>
     </div>
