@@ -42,156 +42,7 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
-  const uploadToCloudinary = async (file) => {
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("upload_preset", "profilepicks"); // must be exact
-    formData.append("folder", "avatars"); // organize uploads
-
-    try {
-      setUploading(true);
-      setUploadProgress(0);
-
-      console.log("Uploading file:", file.name, "Size:", file.size);
-
-      const response = await axios.post(
-        "https://api.cloudinary.com/v1_1/ddlrkl4jy/image/upload", // Use image/upload for images
-        formData,
-        {
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            setUploadProgress(progress);
-            console.log(`Upload progress: ${progress}%`);
-          },
-        }
-      );
-
-      console.log("Cloudinary response:", response.data);
-      return response.data.secure_url;
-    } catch (error) {
-      console.error("Cloudinary upload error:", error);
-      console.error("Error response:", error.response?.data);
-
-      let errorMessage = "Upload failed";
-      if (error.response?.data?.error?.message) {
-        errorMessage = error.response.data.error.message;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(errorMessage);
-      throw error;
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
-    }
-  };
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      console.log("Selected file:", file);
-
-      // Check file type
-      const allowedTypes = [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-      ];
-      if (!allowedTypes.includes(file.type)) {
-        toast.error(
-          "Please select a valid image file (JPEG, PNG, GIF, or WebP)"
-        );
-        e.target.value = ""; // Clear the input
-        return;
-      }
-
-      // Check file size (2MB limit)
-      if (file.size > 2 * 1024 * 1024) {
-        toast.error("File size must be less than 2MB");
-        e.target.value = ""; // Clear the input
-        return;
-      }
-
-      setImage(file);
-      toast.success(`Selected: ${file.name}`);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!image) {
-      toast.error("Please select an image first!");
-      return;
-    }
-
-    try {
-      console.log("Starting upload process...");
-      const imageUrl = await uploadToCloudinary(image);
-
-      console.log("Image uploaded successfully:", imageUrl);
-      console.log("Current profile:", profile);
-
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        toast.error("You must be logged in");
-        return;
-      }
-
-      const token = await getIdToken(currentUser);
-      console.log("Updating profile with new avatar...");
-
-      const updateData = {
-        name: `${profile.firstname} ${profile.lastname}`.trim() || "User",
-        email: profile.email,
-        phone: profile.phone || "",
-        company: profile.company || "",
-        avatar: imageUrl,
-      };
-
-      console.log("Update data:", updateData);
-
-      const res = await axios.put(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/profile`,
-        updateData,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
-
-      console.log("Profile update response:", res.data);
-
-      if (res.data && res.data.user) {
-        updateProfileState(res.data.user);
-        setImage(null);
-        // Clear the file input
-        const fileInput = document.querySelector('input[type="file"]');
-        if (fileInput) fileInput.value = "";
-        toast.success("Avatar updated successfully!");
-      }
-    } catch (error) {
-      console.error("Upload error:", error);
-      console.error("Error details:", error.response?.data);
-
-      let errorMessage = "Failed to upload avatar";
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      toast.error(errorMessage);
-    }
-  };
-
+  // Helper to update profile state from backend user data
   const updateProfileState = (userData) => {
     const [firstname, ...rest] = userData.name?.split(" ") || ["", ""];
     const lastname = rest.join(" ");
@@ -207,6 +58,7 @@ const Profile = () => {
     setEditProfile(newProfile);
   };
 
+  // Fetch profile on mount
   useEffect(() => {
     const fetchProfile = async () => {
       try {
@@ -246,21 +98,75 @@ const Profile = () => {
     fetchProfile();
   }, []);
 
-  const handleEdit = () => {
-    setEditProfile(profile);
-    setEditOpen(true);
+  // File select handler
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+      ];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error(
+          "Please select a valid image file (JPEG, PNG, GIF, or WebP)"
+        );
+        e.target.value = "";
+        return;
+      }
+      if (file.size > 2 * 1024 * 1024) {
+        toast.error("File size must be less than 2MB");
+        e.target.value = "";
+        return;
+      }
+      setImage(file);
+      toast.success(`Selected: ${file.name}`);
+    }
   };
 
-  const handleEditChange = (e) => {
-    const { name, value } = e.target;
-    setEditProfile((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  // Cloudinary upload
+  const uploadToCloudinary = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "profilepicks");
+    formData.append("folder", "avatars");
+    try {
+      setUploading(true);
+      setUploadProgress(0);
+      const response = await axios.post(
+        "https://api.cloudinary.com/v1_1/ddlrkl4jy/image/upload",
+        formData,
+        {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            setUploadProgress(progress);
+          },
+        }
+      );
+      return response.data.secure_url;
+    } catch (error) {
+      let errorMessage = "Upload failed";
+      if (error.response?.data?.error?.message) {
+        errorMessage = error.response.data.error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      toast.error(errorMessage);
+      throw error;
+    } finally {
+      setUploading(false);
+      setUploadProgress(0);
+    }
   };
 
-  const handleEditSubmit = async (e) => {
-    e.preventDefault();
+  // Unified profile update (for avatar and info)
+  const updateProfile = async (updateData) => {
     try {
       const currentUser = auth.currentUser;
       if (!currentUser) {
@@ -270,13 +176,7 @@ const Profile = () => {
       const token = await getIdToken(currentUser);
       const res = await axios.put(
         `${process.env.NEXT_PUBLIC_API_URL}/api/profile`,
-        {
-          name: `${editProfile.firstname} ${editProfile.lastname}`.trim(),
-          email: editProfile.email,
-          phone: editProfile.phone,
-          company: editProfile.company,
-          avatar: profile.avatar, // Keep existing avatar
-        },
+        updateData,
         {
           headers: {
             "Content-Type": "application/json",
@@ -284,16 +184,71 @@ const Profile = () => {
           },
         }
       );
-
       if (res.data && res.data.user) {
         updateProfileState(res.data.user);
-        setEditOpen(false);
         toast.success("Profile updated successfully!");
+        return true;
       }
     } catch (err) {
       console.error("Update profile error:", err);
       toast.error(err.response?.data?.error || "Failed to update profile.");
+      return false;
     }
+  };
+
+  // Avatar upload handler
+  const handleUpload = async () => {
+    if (!image) {
+      toast.error("Please select an image first!");
+      return;
+    }
+    try {
+      const imageUrl = await uploadToCloudinary(image);
+      const updateData = {
+        name: `${profile.firstname} ${profile.lastname}`.trim() || "User",
+        email: profile.email,
+        phone: profile.phone || "",
+        company: profile.company || "",
+        avatar: imageUrl,
+      };
+      const success = await updateProfile(updateData);
+      if (success) {
+        setImage(null);
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = "";
+      }
+    } catch (error) {
+      // Error handled in updateProfile
+    }
+  };
+
+  // Edit profile dialog open
+  const handleEdit = () => {
+    setEditProfile(profile);
+    setEditOpen(true);
+  };
+
+  // Edit profile input change
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditProfile((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  // Edit profile submit
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    const updateData = {
+      name: `${editProfile.firstname} ${editProfile.lastname}`.trim(),
+      email: editProfile.email,
+      phone: editProfile.phone,
+      company: editProfile.company,
+      avatar: profile.avatar, // Keep existing avatar
+    };
+    const success = await updateProfile(updateData);
+    if (success) setEditOpen(false);
   };
 
   if (loading) {
