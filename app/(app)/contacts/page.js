@@ -871,10 +871,6 @@ const Contacts = () => {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button variant="outline" className="flex items-center">
-              <Filter className="h-4 w-4 mr-2" />
-              Filter
-            </Button>
           </div>
         </CardContent>
       </Card>
