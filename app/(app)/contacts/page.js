@@ -97,7 +97,7 @@ const Contacts = () => {
 
   const { data: tagdata } = useQuery({
     queryKey: ["tags"],
-    queryFn: () => getAlltags("", null, null, ""),
+    queryFn: () => getAlltags("debouncedSearch", null, null, ""),
     enabled: true,
   });
 
@@ -907,9 +907,6 @@ const Contacts = () => {
                 {selectedContacts.length} contact(s) selected
               </span>
               <div className="flex space-x-2">
-                <Button variant="outline" size="sm">
-                  Tag Selected
-                </Button>
                 <Button
                   variant="outline"
                   size="sm"
